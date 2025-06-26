@@ -1,13 +1,11 @@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { FcGoogle } from "react-icons/fc"
-
 export default function Login() {
   return (
     <div className="min-h-screen flex">
       {/* Lado esquerdo com fundo azul e imagens */}
-      <div className="w-1/2 bg-[#002855] text-white flex flex-col items-center justify-center p-8">
+      <div className="w-1/2 bg-[#010055] text-white flex flex-col items-center justify-center p-8">
         {/* Você pode substituir por <img src={LogoUFC} /> e ilustrações */}
         <h2 className="text-xl font-bold mb-4 text-center">Universidade Federal do Ceará</h2>
         <p className="text-center">Campus de Itapajé</p>
@@ -20,23 +18,12 @@ export default function Login() {
 
       {/* Lado direito com formulário */}
       <div className="w-1/2 flex flex-col justify-center items-center p-8 bg-white">
-        <img src="/logo-ufc-preta.png" alt="Logo UFC" className="mb-4 w-32" />
+        <img src="src/assets/img/brasao-cor-vertical.png" alt="Logo UFC" className="mb-10 w-32" />
 
-        <h1 className="text-2xl font-bold text-center mb-6">Vitrine UFC - ITAPAJÉ</h1>
+        <h1 className="text-2xl font-bold text-center mb-6">Academium UFC - Vitrine de Projetos</h1>
 
         <div className="w-full max-w-sm space-y-4">
-          <Button
-            variant="outline"
-            className="w-full flex items-center justify-center gap-2 border rounded-full"
-          >
-            <FcGoogle className="text-xl" />
-            Login through Google
-          </Button>
-
           <div className="flex items-center justify-center gap-2 text-gray-400 text-sm">
-            <div className="h-px flex-1 bg-gray-300" />
-            or
-            <div className="h-px flex-1 bg-gray-300" />
           </div>
 
           <div className="space-y-2">
