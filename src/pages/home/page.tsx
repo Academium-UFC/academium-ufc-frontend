@@ -38,13 +38,7 @@ export default function Home() {
                 Início
               </a>
               <a
-                href="#"
-                className="hover:text-blue-200 transition-colors font-medium"
-              >
-                Eventos
-              </a>
-              <a
-                href="#"
+                 onClick={() => navigate("/projetos")}
                 className="hover:text-blue-200 transition-colors font-medium"
               >
                 Projetos
