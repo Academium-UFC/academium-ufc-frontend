@@ -1,13 +1,37 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/lib/use-auth";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
+
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
-  const [matricula, setMatricula] = useState("");
-  const [senha, setSenha] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      await login(email, password);
+      navigate("/");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Erro ao fazer login";
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -80,7 +104,7 @@ export default function Login() {
         </div>
 
         <div className="w-full max-w-md relative z-10">
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center gap-3 mb-8"></div>
 
             {/* Title */}
@@ -91,37 +115,46 @@ export default function Login() {
               </h2>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+
             {/* Login Form */}
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label
-                  htmlFor="matricula"
+                  htmlFor="email"
                   className="text-gray-600 font-medium"
                 >
-                  Matrícula/SIAPE*
+                  Email*
                 </Label>
                 <Input
-                  id="matricula"
-                  type="text"
-                  placeholder="Digite sua matrícula / siape"
-                  value={matricula}
-                  onChange={(e) => setMatricula(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="Digite seu email institucional"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="py-6 border-gray-300 focus:border-blue-500"
+                  required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="senha" className="text-gray-600 font-medium">
+                <Label htmlFor="password" className="text-gray-600 font-medium">
                   Senha*
                 </Label>
                 <div className="relative">
                   <Input
-                    id="senha"
+                    id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Digite sua senha"
-                    value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="py-6 pr-12 border-gray-300 focus:border-blue-500"
+                    required
                   />
                   <Button
                     type="button"
@@ -140,16 +173,31 @@ export default function Login() {
               </div>
 
               <div className="text-right">
-                <button className="text-sm text-blue-600 hover:underline">
-                  Forgot your Password?
+                <button type="button" className="text-sm text-blue-600 hover:underline">
+                  Esqueceu sua senha?
                 </button>
               </div>
 
-              <Button className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold">
-                Login
+              <Button 
+                type="submit"
+                disabled={loading}
+                className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-50"
+              >
+                {loading ? "Entrando..." : "Entrar"}
               </Button>
+
+              <div className="text-center">
+                <span className="text-gray-600">Não tem uma conta? </span>
+                <button 
+                  type="button"
+                  onClick={() => navigate("/cadastro")}
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  Cadastre-se
+                </button>
+              </div>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>
