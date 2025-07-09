@@ -4,10 +4,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/use-auth";
+
 export default function Login() {
+  const { login } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [matricula, setMatricula] = useState("");
-  const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      await login(email, password);
+      navigate("/projetos");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Erro ao fazer login";
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -92,21 +114,19 @@ export default function Login() {
             </div>
 
             {/* Login Form */}
-            <div className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label
-                  htmlFor="matricula"
-                  className="text-gray-600 font-medium"
-                >
-                  Matrícula/SIAPE*
+                <Label htmlFor="email" className="text-gray-600 font-medium">
+                  E-mail Institucional*
                 </Label>
                 <Input
-                  id="matricula"
-                  type="text"
-                  placeholder="Digite sua matrícula / siape"
-                  value={matricula}
-                  onChange={(e) => setMatricula(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="Digite seu e-mail institucional"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="py-6 border-gray-300 focus:border-blue-500"
+                  required
                 />
               </div>
 
@@ -119,8 +139,8 @@ export default function Login() {
                     id="senha"
                     type={showPassword ? "text" : "password"}
                     placeholder="Digite sua senha"
-                    value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="py-6 pr-12 border-gray-300 focus:border-blue-500"
                   />
                   <Button
@@ -145,10 +165,10 @@ export default function Login() {
                 </button>
               </div>
 
-              <Button className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold">
-                Login
+              <Button type="submit" disabled={loading} className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-50">
+                {loading ? "Entrando..." : "Login"}
               </Button>
-            </div>
+            </form>
           </div>
         </div>
       </div>

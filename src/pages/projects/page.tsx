@@ -7,6 +7,8 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
+import { projectService } from "@/lib/api";
+
 export default function Projects() {
   const navigate = useNavigate();
 
@@ -22,21 +24,30 @@ export default function Projects() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
+  const [area, setArea] = useState("");
 
-  const handleAddProject = () => {
-    const nextId = researchProjects.length + 1;
-    setResearchProjects((prev) => [
-      ...prev,
-      {
-        id: nextId,
-        title: title || `Projeto ${nextId}`,
-        description: description || "Sem descrição.",
-        image: image || "/placeholder.svg?height=120&width=120",
-      },
-    ]);
-    setTitle("");
-    setDescription("");
-    setImage("");
+  const handleAddProject = async () => {
+    try {
+      await projectService.create({
+        title,
+        details: description,
+        area: area || "Área não informada",
+      });
+      // Atualiza a lista de projetos do backend
+      const projetosAtualizados = await projectService.getAll();
+      setResearchProjects(projetosAtualizados.map(p => ({
+        id: p.id,
+        title: p.title,
+        description: p.details, // mapeia details para description
+        image: "/placeholder.svg?height=120&width=120" // ou outro campo se houver
+      })));
+      setTitle("");
+      setDescription("");
+      setImage("");
+      setArea("");
+    } catch (error) {
+      console.error("Erro ao criar projeto:", error);
+    }
   };
 
   const removeProject = (id: number) => {
@@ -149,6 +160,11 @@ export default function Projects() {
                       placeholder="Descrição do projeto"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Área do projeto"
+                      value={area}
+                      onChange={(e) => setArea(e.target.value)}
                     />
                     <div className="flex items-center gap-2">
                       <ImageIcon className="w-5 h-5 text-gray-500" />

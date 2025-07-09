@@ -4,13 +4,62 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/use-auth";
+
+interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+  type: string;
+  education?: string;
+  course?: string;
+  area?: string;
+}
 
 export default function Cadastro() {
+  const { register } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [matricula, setMatricula] = useState("");
   const [senha, setSenha] = useState("");
+  const [userType, setUserType] = useState("docente");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const registerData: RegisterData = {
+        name: nome,
+        email,
+        password: senha,
+        type: userType
+      };
+      if (userType === 'docente') {
+        // Assuming education is not directly managed by state in this component
+        // registerData.education = education; 
+      } else if (userType === 'discente') {
+        // Assuming course is not directly managed by state in this component
+        // registerData.course = course; 
+      } else if (userType === 'servidor') {
+        // Assuming area is not directly managed by state in this component
+        // registerData.area = area; 
+      }
+      await register(registerData);
+      navigate("/login");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Erro ao fazer cadastro";
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -34,7 +83,7 @@ export default function Cadastro() {
           <div className="w-6 h-6 bg-blue-300 rounded-full"></div>
         </div>
 
-        <form className="w-full max-w-md space-y-6 z-10">
+        <form className="w-full max-w-md space-y-6 z-10" onSubmit={handleSubmit}>
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-800">Vitrine</h1>
             <h2 className="text-xl font-semibold text-gray-600">
@@ -43,14 +92,28 @@ export default function Cadastro() {
           </div>
 
           <div className="flex items-center justify-center gap-8">
-            <label className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full bg-blue-700 border border-blue-700" />
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="userType"
+                value="docente"
+                checked={userType === 'docente'}
+                onChange={() => setUserType('docente')}
+                className="w-4 h-4 text-blue-700"
+              />
               <span className="text-sm font-medium text-gray-800">
                 Docente/Servidor*
               </span>
             </label>
-            <label className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full bg-gray-400 border border-gray-400" />
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="userType"
+                value="discente"
+                checked={userType === 'discente'}
+                onChange={() => setUserType('discente')}
+                className="w-4 h-4 text-blue-700"
+              />
               <span className="text-sm font-medium text-gray-800">
                 Discente*
               </span>
