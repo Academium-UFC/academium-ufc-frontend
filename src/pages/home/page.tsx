@@ -15,10 +15,37 @@ import {
   DialogTitle,
   DialogHeader,
 } from "../../components/ui/dialog";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
+import { useNavigate } from "react-router-dom";
+import campus from "../../assets/img/ufc.jpg";
+import joao from "../../assets/img/joao.jpg"
+import anderson from "../../assets/img/anderson.jpg"
+import israel from "../../assets/img/israel.jpg"
+import  fenner from "../../assets/img/fenner.jpg"
+import julio from "../../assets/img/julio.jpg"
 export default function Home() {
   const navigate = useNavigate();
+  const idealizadores = [
+  {
+    nome: "Anderson Uchôa",
+    imagem: anderson,
+  },
+  {
+    nome: "Israel Eduardo",
+    imagem: israel,
+  },
+  {
+    nome: "Germano Fenner",
+    imagem: fenner,
+  },
+  {
+    nome: "Júlio César",
+    imagem: julio,
+  },
+];
+const [projetoAberto, setProjetoAberto] = useState<number | null>(null);
+
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 text-gray-900">
@@ -32,19 +59,13 @@ export default function Home() {
             />
             <nav className="hidden md:flex items-center gap-6">
               <a
-                href="#"
+                onClick={() => navigate("/")}
                 className="hover:text-blue-200 transition-colors font-medium"
               >
                 Início
               </a>
               <a
-                href="#"
-                className="hover:text-blue-200 transition-colors font-medium"
-              >
-                Eventos
-              </a>
-              <a
-                href="#"
+                onClick={() => navigate("/projetos")}
                 className="hover:text-blue-200 transition-colors font-medium"
               >
                 Projetos
@@ -52,13 +73,6 @@ export default function Home() {
             </nav>
           </div>
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Encontre o que você procura"
-                className="pl-10 pr-4 py-2 rounded-lg text-black text-sm placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-blue-300 shadow-sm w-64"
-              />
-            </div>
             <Dialog>
               <DialogTrigger asChild>
                 <button className="w-10 h-10 rounded-full bg-white text-[#003366] flex items-center justify-center text-lg font-bold shadow-sm hover:shadow-md transition-shadow">
@@ -97,9 +111,6 @@ export default function Home() {
           <p className="text-xl mb-8 text-blue-100">
             Veja os últimos avanços da nossa comunidade acadêmica
           </p>
-          <Button className="bg-white text-[#004080] hover:bg-gray-100 font-semibold px-10 py-3 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all">
-            Ver mais
-          </Button>
         </div>
       </section>
 
@@ -114,28 +125,43 @@ export default function Home() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Card
-                key={i}
-                className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 shadow-md"
-              >
-                <CardContent className="p-6">
-                  <div className="w-full h-48 bg-gray-100 rounded-lg mb-6 flex items-center justify-center">
-                    <div className="w-16 h-16 bg-[#003366] rounded-lg flex items-center justify-center">
-                      <span className="text-white font-bold text-xl">
-                        {i + 1}
-                      </span>
-                    </div>
-                  </div>
-                  <h3 className="font-bold text-xl mb-3 text-gray-800">
-                    Título do Projeto {i + 1}
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Descrição breve sobre o projeto realizado e seus impactos na
-                    comunidade acadêmica...
-                  </p>
-                </CardContent>
-              </Card>
+            {Array.from({ length: 1 }).map((_, i) => (
+              <Dialog open={projetoAberto === i} onOpenChange={(open) => setProjetoAberto(open ? i : null)}>
+  <DialogTrigger asChild>
+    <Card
+      key={i}
+      className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 shadow-md cursor-pointer"
+    >
+      <CardContent className="p-6">
+        <div className="w-full h-48 bg-gray-100 rounded-lg mb-6 flex items-center justify-center">
+          <div className="w-16 h-16 bg-[#003366] rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-xl">
+              {i + 1}
+            </span>
+          </div>
+        </div>
+        <h3 className="font-bold text-xl mb-3 text-gray-800">
+          Título do Projeto {i + 1}
+        </h3>
+        <p className="text-gray-600 leading-relaxed">
+          Descrição breve sobre o projeto realizado e seus impactos na
+          comunidade acadêmica...
+        </p>
+      </CardContent>
+    </Card>
+  </DialogTrigger>
+
+  <DialogContent className="max-w-xl">
+    <DialogHeader>
+      <DialogTitle>Detalhes do Projeto {i + 1}</DialogTitle>
+    </DialogHeader>
+    <div className="mt-4 text-gray-700 text-sm">
+      <p><strong>Resumo:</strong> Este é um projeto de destaque da nossa comunidade acadêmica. Ele visa promover avanços na área de pesquisa e inovação, com impacto direto na sociedade.</p>
+      <p className="mt-2">Você pode entrar em contato com os responsáveis para saber mais ou acompanhar os próximos passos do projeto.</p>
+    </div>
+  </DialogContent>
+</Dialog>
+
             ))}
           </div>
         </div>
@@ -150,39 +176,41 @@ export default function Home() {
           </div>
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="flex flex-col items-center md:items-start">
-              <div className="w-40 h-40 bg-[#003366] rounded-full mb-6 flex items-center justify-center shadow-lg">
-                <span className="text-white text-3xl font-bold">NI</span>
-              </div>
+              <img
+                src={joao}
+                  alt="Idealizador 1"
+                    className="w-64 h-64 rounded-full mb-6 object-cover shadow-lg"
+                    />
+
               <h3 className="text-2xl font-bold mb-3 text-gray-800">
-                Nome do Idealizador
+                João Henrique Gonçalves Corrêa
               </h3>
               <p className="text-[#003366] mb-2 font-medium">
-                Área: Engenharia
+                Professor Adjunto
               </p>
-              <p className="text-gray-600">E-mail: exemplo@ufc.br</p>
+              <p className="text-gray-600">E-mail: joaocorrea@ufc.com.br</p>
             </div>
-            <div className="bg-white rounded-xl p-8 shadow-lg">
-              <Carousel>
-                <CarouselContent>
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <CarouselItem key={i} className="p-4">
-                      <div className="text-center">
-                        <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center shadow-sm">
-                          <span className="text-[#003366] font-bold text-lg">
-                            {i + 1}
-                          </span>
-                        </div>
-                        <p className="text-sm font-medium text-gray-700">
-                          Idealizador {i + 1}
-                        </p>
-                      </div>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="bg-white shadow-md hover:bg-gray-50" />
-                <CarouselNext className="bg-white shadow-md hover:bg-gray-50" />
-              </Carousel>
-            </div>
+           
+             <Carousel>
+  <CarouselContent>
+    {idealizadores.map((pessoa, i) => (
+      <CarouselItem key={i} className="p-4">
+        <div className="text-center">
+          <img
+            src={pessoa.imagem}
+            alt={`Foto de ${pessoa.nome}`}
+            className="w-54 h-54 rounded-full mx-auto mb-4 object-cover shadow-sm"
+          />
+          <p className="text-sm font-medium text-gray-700">{pessoa.nome}</p>
+        </div>
+      </CarouselItem>
+    ))}
+  </CarouselContent>
+  <CarouselPrevious className="bg-white shadow-md hover:bg-gray-50" />
+  <CarouselNext className="bg-white shadow-md hover:bg-gray-50" />
+</Carousel>
+
+            
           </div>
         </div>
       </section>
@@ -198,11 +226,7 @@ export default function Home() {
             </p>
           </div>
           <div className="relative aspect-video bg-gray-200 rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
-            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform cursor-pointer">
-              <div className="w-10 h-10 bg-[#003366] rounded-full flex items-center justify-center">
-                <div className="w-0 h-0 border-l-4 border-l-white border-y-2 border-y-transparent ml-1"></div>
-              </div>
-            </div>
+            <img src={campus} />
           </div>
         </div>
       </section>
