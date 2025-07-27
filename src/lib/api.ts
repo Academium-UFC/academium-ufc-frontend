@@ -37,6 +37,10 @@ export type User = {
   name: string;
   email: string;
   type: 'admin' | 'docente' | 'discente' | 'servidor';
+  matricula?: string;
+  education?: string;
+  course?: string;
+  area?: string;
 };
 
 export type Project = {
@@ -44,8 +48,55 @@ export type Project = {
   title: string;
   area: string;
   details: string;
+  tipo?: 'pesquisa' | 'extensao' | 'misto';
+  imageUrl?: string; // URL da imagem/banner do projeto
+  status?: 'pending' | 'approved' | 'rejected' | 'inactivated';
   createdAt: string;
   updatedAt: string;
+  coordinator?: {
+    id: number;
+    matricula_siape: string;
+    userId: number;
+    user: {
+      name: string;
+      email: string;
+    };
+  };
+  subCoordinator?: {
+    id: number;
+    matricula_siape: string;
+    userId: number;
+    user: {
+      name: string;
+      email: string;
+    };
+  };
+  coordenadorInstitucional?: {
+    tipo: 'pesquisa' | 'extensao';
+    coordenador: {
+      user: {
+        name: string;
+        email: string;
+      };
+    };
+    coordenadorExtensao?: {
+      user: {
+        name: string;
+        email: string;
+      };
+    };
+  };
+  collaborators?: Array<{
+    user: User;
+    type: string;
+  }>;
+};
+
+export type AdminStats = {
+  totalUsers: number;
+  totalProjects: number;
+  pendingProjects: number;
+  totalAdmins: number;
 };
 
 export interface LoginResponse {
@@ -73,6 +124,7 @@ export interface CreateProjectData {
   title: string;
   area: string;
   details: string;
+  tipo?: 'pesquisa' | 'extensao' | 'misto';
 }
 
 export const authService = {
@@ -95,9 +147,27 @@ export const authService = {
 };
 
 export const projectService = {
-  getAll: async (): Promise<Project[]> => {
-    const response = await api.get('/projects');
-    return response.data;
+  getAll: async (filters?: {
+    area?: string;
+    status?: string;
+    coordenadorType?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<Project[]> => {
+    const params = new URLSearchParams();
+    if (filters?.area) params.append('area', filters.area);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.coordenadorType) params.append('coordenadorType', filters.coordenadorType);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    
+    const queryString = params.toString();
+    const url = queryString ? `/projects?${queryString}` : '/projects';
+    
+    const response = await api.get(url);
+    return response.data.projetos || response.data.projects || response.data;
   },
   getById: async (id: number): Promise<Project> => {
     const response = await api.get(`/projects/${id}`);
@@ -123,6 +193,142 @@ export const projectService = {
     const response = await api.post(`/projects/${id}/approve`, { action, notes });
     return response.data;
   },
+  addCollaborator: async (projectId: number, colaboradorId: number, colaboradorType: string): Promise<any> => {
+    const response = await api.post(`/projects/${projectId}/collaborators`, {
+      colaboradorId,
+      colaboradorType
+    });
+    return response.data;
+  },
+  removeCollaborator: async (projectId: number, colaboradorId: number, colaboradorType: string): Promise<any> => {
+    const response = await api.delete(`/projects/${projectId}/collaborators/${colaboradorId}`, {
+      data: { colaboradorType }
+    });
+    return response.data;
+  },
+  getAvailableCollaborators: async (projectId: number, tipo: string): Promise<User[]> => {
+    const response = await api.get(`/projects/${projectId}/available-collaborators?tipo=${tipo}`);
+    return response.data;
+  },
+  updateSubCoordinator: async (projectId: number, subCoordenadorId?: number, subCoordenadorType?: string): Promise<any> => {
+    const response = await api.put(`/projects/${projectId}/sub-coordinator`, {
+      subCoordenadorId,
+      subCoordenadorType
+    });
+    return response.data;
+  }
+};
+
+export const userService = {
+  getAll: async (): Promise<User[]> => {
+    const response = await api.get('/users');
+    return response.data;
+  },
+  getById: async (id: number): Promise<User> => {
+    const response = await api.get(`/users/${id}`);
+    return response.data;
+  },
+  update: async (id: number, data: Partial<User>): Promise<{ message: string; user: User }> => {
+    const response = await api.put(`/users/${id}`, data);
+    return response.data;
+  },
+  delete: async (id: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/users/${id}`);
+    return response.data;
+  }
+};
+
+export const adminService = {
+  getStats: async (): Promise<AdminStats> => {
+    const response = await api.get('/admin/stats');
+    return response.data;
+  },
+  getAdmins: async (): Promise<User[]> => {
+    const response = await api.get('/admin/admins');
+    return response.data;
+  },
+  promoteToAdmin: async (email: string): Promise<{ message: string }> => {
+    const response = await api.post('/admin/promote', { email });
+    return response.data;
+  },
+  demoteFromAdmin: async (userId: number): Promise<{ message: string }> => {
+    const response = await api.post('/admin/demote', { userId });
+    return response.data;
+  }
+};
+
+// Interface para perfis públicos
+export interface PublicProfile {
+  id: number;
+  name: string;
+  email: string;
+  type: 'docente' | 'servidor';
+  biografia?: string;
+  especialidades?: string;
+  formacao?: string;
+  area_atuacao?: string;
+  telefone?: string;
+  lattes?: string;
+  linkedin?: string;
+  foto_url?: string;
+  matricula_siape?: string;
+  coordenador_institucional?: {
+    tipo: string;
+    ativo: boolean;
+  };
+  projetos: {
+    coordenador: Project[];
+    sub_coordenador: Project[];
+    colaborador: Project[];
+    total: number;
+    ativos: Project[];
+  };
+}
+
+export interface PublicProfileSummary {
+  id: number;
+  name: string;
+  type: 'docente' | 'servidor';
+  area_atuacao?: string;
+  especialidades?: string;
+  foto_url?: string;
+  coordenador_institucional?: {
+    tipo: string;
+    ativo: boolean;
+  };
+}
+
+// Serviços de perfis públicos
+export const profileService = {
+  // Listar todos os perfis públicos
+  getAll: async (filters?: {
+    type?: 'docente' | 'servidor';
+    area?: string;
+    search?: string;
+  }): Promise<{ profiles: PublicProfileSummary[], total: number }> => {
+    const params = new URLSearchParams();
+    if (filters?.type) params.append('type', filters.type);
+    if (filters?.area) params.append('area', filters.area);
+    if (filters?.search) params.append('search', filters.search);
+    
+    const queryString = params.toString();
+    const url = queryString ? `/profile?${queryString}` : '/profile';
+    
+    const response = await api.get(url);
+    return response.data;
+  },
+
+  // Buscar perfis públicos sem paginação
+  getPublicProfiles: async (): Promise<PublicProfileSummary[]> => {
+    const response = await api.get('/profile');
+    return response.data.profiles;
+  },
+
+  // Buscar perfil específico
+  getById: async (id: number): Promise<PublicProfile> => {
+    const response = await api.get(`/profile/${id}`);
+    return response.data;
+  }
 };
 
 export default api; 

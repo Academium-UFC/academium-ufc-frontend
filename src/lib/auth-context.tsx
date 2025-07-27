@@ -1,5 +1,5 @@
 import type { User, RegisterData } from './api';
-import React, { useState, useEffect, ReactNode } from 'react';
+import React, { useState, useEffect, type ReactNode } from 'react';
 import { authService } from './api';
 import { AuthContext } from './auth-context-def';
 

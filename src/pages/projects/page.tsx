@@ -1,57 +1,115 @@
-import { Search, Menu, Plus, Trash2, Image as ImageIcon } from "lucide-react";
+import { Search, Menu, Plus, Trash2, Loader, Filter, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
-import { projectService } from "@/lib/api";
+import { projectService, type Project } from "@/lib/api";
+import { useAuth } from "@/lib/use-auth";
 
 export default function Projects() {
   const navigate = useNavigate();
-
-  const [researchProjects, setResearchProjects] = useState(
-    Array.from({ length: 1 }, (_, i) => ({
-      id: i + 1,
-      title: "Revista 2018",
-      description: "Descrição do projeto de pesquisa desenvolvido no campus",
-      image: "/placeholder.svg?height=120&width=120",
-    }))
-  );
+  const { user, isAuthenticated } = useAuth();
+  
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [areaFilter, setAreaFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [image, setImage] = useState("");
   const [area, setArea] = useState("");
 
+  // Areas disponíveis para filtro
+  const availableAreas = [
+    "Inteligência Artificial",
+    "Desenvolvimento Web",
+    "Sistemas Embarcados",
+    "Banco de Dados",
+    "Redes de Computadores",
+    "Engenharia de Software",
+    "Computação Gráfica",
+    "Segurança da Informação"
+  ];
+
+  // Carrega projetos da API
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        setLoading(true);
+        const filters = {
+          ...(searchTerm && { search: searchTerm }),
+          ...(areaFilter && { area: areaFilter }),
+          ...(statusFilter && { status: statusFilter })
+        };
+        
+        const projectsData = await projectService.getAll(filters);
+        setProjects(projectsData);
+      } catch (error) {
+        console.error("Erro ao carregar projetos:", error);
+        setError("Erro ao carregar projetos. Verifique se o servidor está rodando.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProjects();
+  }, [searchTerm, areaFilter, statusFilter]);
+
+  // Filtra projetos baseado na busca local apenas se não houver filtros de API
+  const displayProjects = projects;
+
   const handleAddProject = async () => {
+    if (!title.trim() || !description.trim() || !area.trim()) {
+      alert("Por favor, preencha todos os campos");
+      return;
+    }
+
     try {
-      await projectService.create({
-        title,
-        details: description,
-        area: area || "Área não informada",
+      const newProject = await projectService.create({
+        title: title.trim(),
+        details: description.trim(),
+        area: area.trim(),
       });
-      // Atualiza a lista de projetos do backend
-      const projetosAtualizados = await projectService.getAll();
-      setResearchProjects(projetosAtualizados.map(p => ({
-        id: p.id,
-        title: p.title,
-        description: p.details, // mapeia details para description
-        image: "/placeholder.svg?height=120&width=120" // ou outro campo se houver
-      })));
+      
+      // Atualiza a lista de projetos
+      setProjects([...projects, newProject.project]);
+      
+      // Limpa o formulário e fecha o diálogo
       setTitle("");
       setDescription("");
-      setImage("");
       setArea("");
+      setIsDialogOpen(false);
     } catch (error) {
       console.error("Erro ao criar projeto:", error);
+      alert("Erro ao criar projeto. Tente novamente.");
     }
   };
 
-  const removeProject = (id: number) => {
-    setResearchProjects((prev) => prev.filter((project) => project.id !== id));
+  const removeProject = async (id: number) => {
+    if (!confirm("Tem certeza que deseja remover este projeto?")) {
+      return;
+    }
+
+    try {
+      await projectService.delete(id);
+      setProjects(projects.filter(project => project.id !== id));
+    } catch (error) {
+      console.error("Erro ao remover projeto:", error);
+      alert("Erro ao remover projeto. Tente novamente.");
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
   return (
@@ -65,24 +123,42 @@ export default function Projects() {
                 className="h-14 w-28 object-contain"
                 alt="Logo UFC"
               />
+              <nav className="hidden md:flex items-center space-x-8">
+                <a
+                  onClick={() => navigate("/")}
+                  className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
+                >
+                  Início
+                </a>
+                <a
+                  onClick={() => navigate("/projetos")}
+                  className="text-sm text-blue-200 transition-colors cursor-pointer"
+                >
+                  Projetos
+                </a>
+                {user?.type === 'admin' && (
+                  <a
+                    onClick={() => navigate("/admin")}
+                    className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
+                  >
+                    Admin
+                  </a>
+                )}
+                {isAuthenticated && (
+                  <a
+                    onClick={() => navigate("/perfil")}
+                    className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
+                  >
+                    Perfil
+                  </a>
+                )}
+              </nav>
             </div>
-            <nav className="hidden md:flex items-center space-x-8">
-              <a
-                onClick={() => navigate("/")}
-                className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
-              >
-                Início
-              </a>
-              <a
-                onClick={() => navigate("/projetos")}
-                className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
-              >
-                Projetos
-              </a>
-            </nav>
-            <Button variant="ghost" size="sm" className="md:hidden text-white">
-              <Menu className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" size="sm" className="md:hidden text-white">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -102,8 +178,8 @@ export default function Projects() {
               </p>
             </div>
             <div className="flex justify-center">
-              <div className="relative w-80 h-80">
-                <img src="#" alt="" />
+              <div className="relative w-80 h-80 bg-blue-800 rounded-full flex items-center justify-center">
+                <div className="text-6xl">🔬</div>
               </div>
             </div>
           </div>
@@ -112,14 +188,55 @@ export default function Projects() {
 
       <section className="bg-gray-50 py-8">
         <div className="container mx-auto px-4">
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-4xl mx-auto space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <Input
                 type="text"
                 placeholder="Buscar projetos de pesquisa..."
                 className="pl-10 h-12 text-lg"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
+            </div>
+            
+            {/* Filtros */}
+            <div className="flex gap-4 flex-wrap">
+              <select
+                value={areaFilter}
+                onChange={(e) => setAreaFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todas as áreas</option>
+                {availableAreas.map((areaOption) => (
+                  <option key={areaOption} value={areaOption}>
+                    {areaOption}
+                  </option>
+                ))}
+              </select>
+              
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todos os status</option>
+                <option value="approved">Aprovados</option>
+                <option value="pending">Pendentes</option>
+                <option value="rejected">Rejeitados</option>
+              </select>
+              
+              {areaFilter || statusFilter ? (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setAreaFilter("");
+                    setStatusFilter("");
+                  }}
+                >
+                  Limpar Filtros
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -141,82 +258,130 @@ export default function Projects() {
 
           <div className="mb-8">
             <div className="flex justify-between items-center mb-6">
-              <h4 className="text-2xl font-bold text-gray-900">Pesquisa</h4>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" /> Adicionar Projeto
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md w-full">
-                  <div className="space-y-4">
-                    <h2 className="text-lg font-semibold">Novo Projeto</h2>
-                    <Input
-                      placeholder="Título do projeto"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                    />
-                    <Textarea
-                      placeholder="Descrição do projeto"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                    />
-                    <Input
-                      placeholder="Área do projeto"
-                      value={area}
-                      onChange={(e) => setArea(e.target.value)}
-                    />
-                    <div className="flex items-center gap-2">
-                      <ImageIcon className="w-5 h-5 text-gray-500" />
-                      <Input
-                        placeholder="URL da imagem (opcional)"
-                        value={image}
-                        onChange={(e) => setImage(e.target.value)}
-                      />
-                    </div>
-                    <Button onClick={handleAddProject} className="w-full">
-                      Criar Projeto
+              <h4 className="text-2xl font-bold text-gray-900">
+                Pesquisa ({projects.length} projetos)
+              </h4>
+              {isAuthenticated && (
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" /> Adicionar Projeto
                     </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md w-full">
+                    <div className="space-y-4">
+                      <h2 className="text-lg font-semibold">Novo Projeto</h2>
+                      <Input
+                        placeholder="Título do projeto"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                      />
+                      <Textarea
+                        placeholder="Descrição do projeto"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        rows={4}
+                      />
+                      <Input
+                        placeholder="Área do projeto (ex: Tecnologia, Educação, Saúde)"
+                        value={area}
+                        onChange={(e) => setArea(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <Button onClick={handleAddProject} className="flex-1">
+                          Criar Projeto
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setIsDialogOpen(false)}
+                          className="flex-1"
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {researchProjects.map((project) => (
-                <Card
-                  key={project.id}
-                  className="bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
-                >
-                  <CardContent className="p-6">
-                    <div className="flex flex-col items-center text-center space-y-4">
-                      <img
-                        src={project.image}
-                        alt={project.title}
-                        className="w-16 h-16 rounded-full object-cover"
-                      />
-                      <div>
-                        <h5 className="font-semibold text-lg mb-2">
-                          {project.title}
-                        </h5>
-                        <p className="text-sm text-blue-100 leading-relaxed">
-                          {project.description}
-                        </p>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+                {error}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader className="w-8 h-8 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600">Carregando projetos...</span>
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">📚</div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {searchTerm ? "Nenhum projeto encontrado" : "Nenhum projeto cadastrado"}
+                </h3>
+                <p className="text-gray-600">
+                  {searchTerm 
+                    ? "Tente buscar por outros termos" 
+                    : "Seja o primeiro a adicionar um projeto de pesquisa!"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {projects.map((project) => (
+                  <Card
+                    key={project.id}
+                    className="bg-white border border-gray-200 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                    onClick={() => navigate(`/projetos/${project.id}`)}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex flex-col space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                            <span className="text-blue-600 font-semibold text-lg">
+                              {project.title.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          {isAuthenticated && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeProject(project.id);
+                              }}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold text-lg mb-2 text-gray-900">
+                            {project.title}
+                          </h5>
+                          <p className="text-sm text-blue-600 mb-2 font-medium">
+                            {project.area}
+                          </p>
+                          <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">
+                            {project.details}
+                          </p>
+                        </div>
+
+                        <div className="pt-2 border-t border-gray-100">
+                          <p className="text-xs text-gray-500">
+                            Criado em: {formatDate(project.createdAt)}
+                          </p>
+                        </div>
                       </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => removeProject(project.id)}
-                        className="flex items-center gap-1 mt-4"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Remover
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>
@@ -231,7 +396,7 @@ export default function Projects() {
             />
             <div className="text-right">
               <p className="text-sm text-blue-200">
-                © 2024 Universidade Federal do Ceará. Todos os direitos
+                © 2025 Universidade Federal do Ceará. Todos os direitos
                 reservados.
               </p>
             </div>
