@@ -1,16 +1,15 @@
-import { Search, Menu, Plus, Trash2, Loader, Filter, Eye } from "lucide-react";
+import { Search, Menu, Plus, Trash2, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
 import { projectService, type Project } from "@/lib/api";
 import { useAuth } from "@/lib/use-auth";
+import { UserMenu } from "@/components/ui/user-menu";
 
 export default function Projects() {
   const navigate = useNavigate();
@@ -22,11 +21,13 @@ export default function Projects() {
   const [searchTerm, setSearchTerm] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [area, setArea] = useState("");
+  const [projectType, setProjectType] = useState("");
 
   // Areas disponíveis para filtro
   const availableAreas = [
@@ -48,7 +49,8 @@ export default function Projects() {
         const filters = {
           ...(searchTerm && { search: searchTerm }),
           ...(areaFilter && { area: areaFilter }),
-          ...(statusFilter && { status: statusFilter })
+          ...(statusFilter && { status: statusFilter }),
+          ...(typeFilter && { tipo: typeFilter })
         };
         
         const projectsData = await projectService.getAll(filters);
@@ -62,13 +64,10 @@ export default function Projects() {
     };
 
     loadProjects();
-  }, [searchTerm, areaFilter, statusFilter]);
-
-  // Filtra projetos baseado na busca local apenas se não houver filtros de API
-  const displayProjects = projects;
+  }, [searchTerm, areaFilter, statusFilter, typeFilter]);
 
   const handleAddProject = async () => {
-    if (!title.trim() || !description.trim() || !area.trim()) {
+    if (!title.trim() || !description.trim() || !area.trim() || !projectType.trim()) {
       alert("Por favor, preencha todos os campos");
       return;
     }
@@ -78,6 +77,7 @@ export default function Projects() {
         title: title.trim(),
         details: description.trim(),
         area: area.trim(),
+        tipo: projectType as 'pesquisa' | 'extensao' | 'misto',
       });
       
       // Atualiza a lista de projetos
@@ -87,6 +87,7 @@ export default function Projects() {
       setTitle("");
       setDescription("");
       setArea("");
+      setProjectType("");
       setIsDialogOpen(false);
     } catch (error) {
       console.error("Erro ao criar projeto:", error);
@@ -101,7 +102,7 @@ export default function Projects() {
 
     try {
       await projectService.delete(id);
-      setProjects(projects.filter(project => project.id !== id));
+      setProjects(projects.filter((project: Project) => project.id !== id));
     } catch (error) {
       console.error("Erro ao remover projeto:", error);
       alert("Erro ao remover projeto. Tente novamente.");
@@ -158,6 +159,9 @@ export default function Projects() {
               <Button variant="ghost" size="sm" className="md:hidden text-white">
                 <Menu className="h-5 w-5" />
               </Button>
+              {isAuthenticated && (
+                <UserMenu />
+              )}
             </div>
           </div>
         </div>
@@ -216,6 +220,17 @@ export default function Projects() {
               </select>
               
               <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todos os tipos</option>
+                <option value="pesquisa">Pesquisa</option>
+                <option value="extensao">Extensão</option>
+                <option value="misto">Pesquisa e Extensão</option>
+              </select>
+              
+              <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -226,12 +241,13 @@ export default function Projects() {
                 <option value="rejected">Rejeitados</option>
               </select>
               
-              {areaFilter || statusFilter ? (
+              {areaFilter || statusFilter || typeFilter ? (
                 <Button
                   variant="outline"
                   onClick={() => {
                     setAreaFilter("");
                     setStatusFilter("");
+                    setTypeFilter("");
                   }}
                 >
                   Limpar Filtros
@@ -287,6 +303,17 @@ export default function Projects() {
                         value={area}
                         onChange={(e) => setArea(e.target.value)}
                       />
+                      <select
+                        value={projectType}
+                        onChange={(e) => setProjectType(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="">Selecione o tipo do projeto</option>
+                        <option value="pesquisa">Pesquisa</option>
+                        <option value="extensao">Extensão</option>
+                        <option value="misto">Pesquisa e Extensão</option>
+                      </select>
                       <div className="flex gap-2">
                         <Button onClick={handleAddProject} className="flex-1">
                           Criar Projeto
@@ -363,8 +390,13 @@ export default function Projects() {
                           <h5 className="font-semibold text-lg mb-2 text-gray-900">
                             {project.title}
                           </h5>
-                          <p className="text-sm text-blue-600 mb-2 font-medium">
+                          <p className="text-sm text-blue-600 mb-1 font-medium">
                             {project.area}
+                          </p>
+                          <p className="text-sm text-gray-600 mb-2">
+                            Tipo: {project.tipo === 'pesquisa' ? 'Pesquisa' : 
+                                   project.tipo === 'extensao' ? 'Extensão' : 
+                                   project.tipo === 'misto' ? 'Pesquisa e Extensão' : 'Não especificado'}
                           </p>
                           <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">
                             {project.details}

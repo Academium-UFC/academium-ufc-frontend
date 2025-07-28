@@ -20,20 +20,109 @@ interface RegisterData {
 export default function Cadastro() {
   const { register } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [matricula, setMatricula] = useState("");
   const [senha, setSenha] = useState("");
+  const [confirmaSenha, setConfirmaSenha] = useState("");
   const [userType, setUserType] = useState("docente");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const navigate = useNavigate();
+
+  // Função para validar email
+  const validateEmail = (email: string, userType: string) => {
+    if (!email) {
+      setEmailError("Email é obrigatório");
+      return false;
+    }
+    
+    if (userType === "discente") {
+      if (!email.endsWith("@alu.ufc.br")) {
+        setEmailError("Discentes devem usar email @alu.ufc.br");
+        return false;
+      }
+    } else if (userType === "docente" || userType === "servidor") {
+      if (!email.endsWith("@ufc.br")) {
+        setEmailError("Docentes e servidores devem usar email @ufc.br");
+        return false;
+      }
+    }
+    
+    setEmailError("");
+    return true;
+  };
+
+  // Função para validar senhas
+  const validatePasswords = (senha: string, confirmaSenha: string) => {
+    if (!senha) {
+      setPasswordError("Senha é obrigatória");
+      return false;
+    }
+    
+    if (senha.length < 6) {
+      setPasswordError("Senha deve ter pelo menos 6 caracteres");
+      return false;
+    }
+    
+    if (senha !== confirmaSenha) {
+      setPasswordError("Senhas não coincidem");
+      return false;
+    }
+    
+    setPasswordError("");
+    return true;
+  };
+
+  // Validar email quando email ou userType mudarem
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEmail = e.target.value;
+    setEmail(newEmail);
+    validateEmail(newEmail, userType);
+  };
+
+  // Validar senha quando confirmação mudar
+  const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newConfirmPassword = e.target.value;
+    setConfirmaSenha(newConfirmPassword);
+    validatePasswords(senha, newConfirmPassword);
+  };
+
+  // Validar senha quando senha principal mudar
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setSenha(newPassword);
+    if (confirmaSenha) {
+      validatePasswords(newPassword, confirmaSenha);
+    }
+  };
+
+  // Revalidar email quando tipo de usuário mudar
+  const handleUserTypeChange = (newType: string) => {
+    setUserType(newType);
+    if (email) {
+      validateEmail(email, newType);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    
+    // Validar email e senhas antes de enviar
+    const isEmailValid = validateEmail(email, userType);
+    const isPasswordValid = validatePasswords(senha, confirmaSenha);
+    
+    if (!isEmailValid || !isPasswordValid) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       const registerData: RegisterData = {
         name: nome,
@@ -98,7 +187,7 @@ export default function Cadastro() {
                 name="userType"
                 value="docente"
                 checked={userType === 'docente'}
-                onChange={() => setUserType('docente')}
+                onChange={() => handleUserTypeChange('docente')}
                 className="w-4 h-4 text-blue-700"
               />
               <span className="text-sm font-medium text-gray-800">
@@ -111,7 +200,7 @@ export default function Cadastro() {
                 name="userType"
                 value="discente"
                 checked={userType === 'discente'}
-                onChange={() => setUserType('discente')}
+                onChange={() => handleUserTypeChange('discente')}
                 className="w-4 h-4 text-blue-700"
               />
               <span className="text-sm font-medium text-gray-800">
@@ -138,11 +227,15 @@ export default function Cadastro() {
                 E-mail Institucional
               </Label>
               <Input
+                type="email"
                 placeholder="Digite seu E-mail Institucional"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="rounded-full border-gray-300 px-5 py-5"
+                onChange={handleEmailChange}
+                className={`rounded-full border-gray-300 px-5 py-5 ${emailError ? 'border-red-500' : ''}`}
               />
+              {emailError && (
+                <p className="text-red-500 text-sm mt-1 ml-2">{emailError}</p>
+              )}
             </div>
 
             <div>
@@ -164,8 +257,8 @@ export default function Cadastro() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Digite sua senha"
                   value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  className="rounded-full border-gray-300 px-5 py-5 pr-12"
+                  onChange={handlePasswordChange}
+                  className={`rounded-full border-gray-300 px-5 py-5 pr-12 ${passwordError ? 'border-red-500' : ''}`}
                 />
                 <Button
                   type="button"
@@ -182,9 +275,49 @@ export default function Cadastro() {
                 </Button>
               </div>
             </div>
+
+            <div>
+              <Label className="text-blue-900 font-medium">Confirmar Senha*</Label>
+              <div className="relative">
+                <Input
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Confirme sua senha"
+                  value={confirmaSenha}
+                  onChange={handleConfirmPasswordChange}
+                  className={`rounded-full border-gray-300 px-5 py-5 pr-12 ${passwordError ? 'border-red-500' : ''}`}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-0 h-6 w-6"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-4 h-4 text-gray-500" />
+                  ) : (
+                    <Eye className="w-4 h-4 text-gray-500" />
+                  )}
+                </Button>
+              </div>
+              {passwordError && (
+                <p className="text-red-500 text-sm mt-1 ml-2">{passwordError}</p>
+              )}
+            </div>
           </div>
-          <Button className="w-full rounded-full py-6 bg-[#003366] hover:bg-[#002855] text-white font-semibold">
-            Cadastre - se
+
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md">
+              {error}
+            </div>
+          )}
+
+          <Button 
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-full py-6 bg-[#003366] hover:bg-[#002855] text-white font-semibold disabled:opacity-50"
+          >
+            {loading ? "Cadastrando..." : "Cadastre-se"}
           </Button>
         </form>
       </div>

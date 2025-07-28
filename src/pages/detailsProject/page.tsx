@@ -18,6 +18,8 @@ import {
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
 import { projectService, type Project, type User as UserType } from "@/lib/api";
 
+import { UserAvatar } from "@/components/ui/user-avatar";
+
 export default function ProjectDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -251,20 +253,66 @@ export default function ProjectDetailsPage() {
               <CardContent className="space-y-4">
                 {project.coordinator && (
                   <div>
-                    <h4 className="font-medium text-sm text-gray-600 mb-1">Coordenador/Idealizador do Projeto</h4>
-                    <div className="flex items-center justify-between">
-                      {createProfileLink(project.coordinator.id, project.coordinator.name, project.coordinator.email)}
-                      {getUserTypeBadge(project.coordinator.type)}
+                    <h4 className="font-medium text-sm text-gray-600 mb-2">Coordenador/Idealizador do Projeto</h4>
+                    <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-blue-50">
+                      <UserAvatar user={project.coordinator.user} size="md" />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-blue-900">{project.coordinator.user.name}</p>
+                            <p className="text-sm text-gray-600">{project.coordinator.user.email}</p>
+                            <p className="text-xs text-blue-600 mt-1">Matrícula SIAPE: {project.coordinator.matricula_siape}</p>
+                          </div>
+                          <div className="text-right">
+                            {getUserTypeBadge(project.coordinator.user.type)}
+                            <div className="mt-1">
+                              <Badge variant="default" className="text-xs">
+                                <Crown className="h-3 w-3 mr-1" />
+                                Coordenador
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <div 
+                          className="cursor-pointer text-blue-600 hover:text-blue-800 text-xs mt-2"
+                          onClick={() => navigate(`/perfil-publico/${project.coordinator.user.id}`)}
+                        >
+                          Ver perfil público →
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
                 
                 {project.subCoordinator && (
                   <div>
-                    <h4 className="font-medium text-sm text-gray-600 mb-1">Sub-coordenador do Projeto</h4>
-                    <div className="flex items-center justify-between">
-                      {createProfileLink(project.subCoordinator.id, project.subCoordinator.name, project.subCoordinator.email)}
-                      {getUserTypeBadge(project.subCoordinator.type)}
+                    <h4 className="font-medium text-sm text-gray-600 mb-2">Sub-coordenador do Projeto</h4>
+                    <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-green-50">
+                      <UserAvatar user={project.subCoordinator.user} size="md" />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-green-900">{project.subCoordinator.user.name}</p>
+                            <p className="text-sm text-gray-600">{project.subCoordinator.user.email}</p>
+                            <p className="text-xs text-green-600 mt-1">Matrícula SIAPE: {project.subCoordinator.matricula_siape}</p>
+                          </div>
+                          <div className="text-right">
+                            {getUserTypeBadge(project.subCoordinator.user.type)}
+                            <div className="mt-1">
+                              <Badge variant="secondary" className="text-xs">
+                                <Shield className="h-3 w-3 mr-1" />
+                                Sub-coordenador
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <div 
+                          className="cursor-pointer text-green-600 hover:text-green-800 text-xs mt-2"
+                          onClick={() => navigate(`/perfil-publico/${project.subCoordinator.user.id}`)}
+                        >
+                          Ver perfil público →
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -359,8 +407,9 @@ export default function ProjectDetailsPage() {
                             ) : (
                               <div className="space-y-2">
                                 {availableCollaborators.map((collaborator) => (
-                                  <div key={collaborator.id} className="flex items-center justify-between p-2 border rounded-md">
-                                    <div>
+                                  <div key={collaborator.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+                                    <UserAvatar user={collaborator} size="sm" />
+                                    <div className="flex-1">
                                       <p className="font-medium">{collaborator.name}</p>
                                       <p className="text-sm text-gray-600">{collaborator.email}</p>
                                     </div>
@@ -388,14 +437,27 @@ export default function ProjectDetailsPage() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {project.collaborators.map((collaborator, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div>
+                    {project.collaborators.map((collaborator: any, index: number) => (
+                      <div key={index} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                        <UserAvatar user={collaborator.user} size="sm" />
+                        <div className="flex-1">
                           <p className="font-medium">{collaborator.user.name}</p>
                           <p className="text-sm text-gray-600">{collaborator.user.email}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {getUserTypeBadge(collaborator.user.type)}
+                            <Badge variant="outline" className="text-xs">
+                              <UserCheck className="h-3 w-3 mr-1" />
+                              Colaborador
+                            </Badge>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {getUserTypeBadge(collaborator.user.type)}
+                          <div 
+                            className="cursor-pointer text-blue-600 hover:text-blue-800 text-xs"
+                            onClick={() => navigate(`/perfil-publico/${collaborator.user.id}`)}
+                          >
+                            Ver perfil →
+                          </div>
                           {canManageProject() && (
                             <Button
                               variant="destructive"

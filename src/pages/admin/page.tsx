@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/use-auth";
 import { useNavigate } from "react-router-dom";
+import { UserMenu } from "@/components/ui/user-menu";
 import { 
   Users, 
   BookOpen, 
@@ -37,9 +38,10 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [admins, setAdmins] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [approvalNotes, setApprovalNotes] = useState("");
   const [promoteEmail, setPromoteEmail] = useState("");
+  const [coordinatorUserId, setCoordinatorUserId] = useState("");
+  const [coordinatorType, setCoordinatorType] = useState<'pesquisa' | 'extensao'>('pesquisa');
 
   useEffect(() => {
     if (!isAuthenticated || user?.type !== 'admin') {
@@ -75,7 +77,6 @@ export default function AdminPage() {
     try {
       await projectService.approve(projectId, action, approvalNotes);
       await loadAdminData();
-      setSelectedProject(null);
       setApprovalNotes("");
     } catch (error) {
       console.error("Erro ao processar projeto:", error);
@@ -100,6 +101,31 @@ export default function AdminPage() {
       await loadAdminData();
     } catch (error) {
       console.error("Erro ao rebaixar administrador:", error);
+    }
+  };
+
+  const handlePromoteToCoordinator = async () => {
+    if (!coordinatorUserId.trim()) return;
+    
+    try {
+      await adminService.promoteToCoordinator(parseInt(coordinatorUserId), coordinatorType);
+      await loadAdminData();
+      setCoordinatorUserId("");
+      alert(`Usuário promovido a Coordenador de ${coordinatorType === 'pesquisa' ? 'Pesquisa' : 'Extensão'} com sucesso!`);
+    } catch (error) {
+      console.error("Erro ao promover usuário a coordenador:", error);
+      alert("Erro ao promover usuário a coordenador. Verifique se o ID do usuário existe.");
+    }
+  };
+
+  const handleDemoteFromCoordinator = async (userId: number) => {
+    try {
+      await adminService.demoteFromCoordinator(userId);
+      await loadAdminData();
+      alert("Usuário removido do cargo de coordenador com sucesso!");
+    } catch (error) {
+      console.error("Erro ao remover coordenador:", error);
+      alert("Erro ao remover coordenador.");
     }
   };
 
@@ -175,6 +201,7 @@ export default function AdminPage() {
               <Button variant="ghost" onClick={() => navigate('/projetos')} className="text-white hover:text-gray-200">
                 Projetos
               </Button>
+              <UserMenu />
             </nav>
           </div>
         </div>
@@ -235,8 +262,9 @@ export default function AdminPage() {
         )}
 
         <Tabs defaultValue="projects" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="projects">Projetos</TabsTrigger>
+            <TabsTrigger value="coordinators">Coordenadores</TabsTrigger>
             <TabsTrigger value="users">Usuários</TabsTrigger>
             <TabsTrigger value="admins">Administradores</TabsTrigger>
           </TabsList>
@@ -248,7 +276,7 @@ export default function AdminPage() {
             </div>
             
             <div className="grid gap-4">
-              {projects.map((project) => (
+              {projects.map((project: Project) => (
                 <Card key={project.id}>
                   <CardHeader>
                     <div className="flex justify-between items-start">
@@ -326,6 +354,86 @@ export default function AdminPage() {
                   <CardContent>
                     <p className="text-sm text-gray-600 line-clamp-2">{project.details}</p>
                   </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* Coordenadores */}
+          <TabsContent value="coordinators" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Gerenciar Coordenadores</h2>
+            </div>
+            
+            {/* Promover a Coordenador */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Promover Usuário a Coordenador</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-4">
+                  <Input
+                    placeholder="ID do usuário"
+                    value={coordinatorUserId}
+                    onChange={(e) => setCoordinatorUserId(e.target.value)}
+                    type="number"
+                  />
+                  <select
+                    value={coordinatorType}
+                    onChange={(e) => setCoordinatorType(e.target.value as 'pesquisa' | 'extensao')}
+                    className="px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="pesquisa">Coordenador de Pesquisa</option>
+                    <option value="extensao">Coordenador de Extensão</option>
+                  </select>
+                  <Button onClick={handlePromoteToCoordinator}>
+                    Promover
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Lista de Coordenadores */}
+            <div className="grid gap-4">
+              {users
+                .filter(user => user.coordenador_institucional?.ativo)
+                .map((coordinator) => (
+                <Card key={coordinator.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle className="text-lg">{coordinator.name}</CardTitle>
+                        <p className="text-sm text-gray-600">{coordinator.email}</p>
+                        <p className="text-sm text-gray-500">
+                          Coordenador de {coordinator.coordenador_institucional?.tipo === 'pesquisa' ? 'Pesquisa' : 'Extensão'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {getUserTypeBadge(coordinator.type)}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              Remover Cargo
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remover do cargo de coordenador?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação removerá {coordinator.name} do cargo de coordenador. Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDemoteFromCoordinator(coordinator.id)}>
+                                Remover
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </CardHeader>
                 </Card>
               ))}
             </div>

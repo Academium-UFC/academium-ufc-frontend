@@ -19,10 +19,14 @@ import {
   Plus,
   Trash2,
   ArrowLeft,
-  Settings
+  Settings,
+  GraduationCap,
+  Monitor,
+  Construction,
+  AlertCircle
 } from "lucide-react";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
-import { projectService, type Project } from "@/lib/api";
+import { projectService, uploadService, type Project, type User } from "@/lib/api";
 
 export default function ProfilePage() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -31,11 +35,52 @@ export default function ProfilePage() {
   const [myProjects, setMyProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [newProject, setNewProject] = useState({
     title: "",
     area: "",
-    details: ""
+    details: "",
+    tipo: ""
   });
+
+  // Função para upload de avatar
+  const handleAvatarUpload = async (event: any) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de arquivo
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione apenas arquivos de imagem.');
+      return;
+    }
+
+    // Validar tamanho (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('A imagem deve ter no máximo 5MB.');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      
+      // Fazer upload usando o serviço
+      const result = await uploadService.uploadAvatar(formData);
+      
+      // Atualizar o contexto com o novo usuário
+      if (result.user) {
+        console.log('Avatar atualizado com sucesso:', result.user.foto_url);
+        alert('Avatar atualizado com sucesso!');
+        
+        // Recarregar a página para mostrar o novo avatar
+        window.location.reload();
+      }
+      
+    } catch (error) {
+      console.error('Erro ao fazer upload do avatar:', error);
+      alert('Erro ao fazer upload da imagem. Tente novamente.');
+    }
+  };
 
   const loadUserData = useCallback(async () => {
     try {
@@ -61,16 +106,22 @@ export default function ProfilePage() {
   }, [user, isAuthenticated, navigate, loadUserData]);
 
   const handleCreateProject = async () => {
-    if (!newProject.title.trim() || !newProject.area.trim() || !newProject.details.trim()) {
+    if (!newProject.title.trim() || !newProject.area.trim() || !newProject.details.trim() || !newProject.tipo.trim()) {
       alert("Por favor, preencha todos os campos");
       return;
     }
 
     try {
-      await projectService.create(newProject);
+      await projectService.create({
+        title: newProject.title.trim(),
+        area: newProject.area.trim(),
+        details: newProject.details.trim(),
+        tipo: newProject.tipo as 'pesquisa' | 'extensao' | 'misto'
+      });
       await loadUserData();
-      setNewProject({ title: "", area: "", details: "" });
+      setNewProject({ title: "", area: "", details: "", tipo: "" });
       setIsCreateDialogOpen(false);
+      alert("Projeto criado com sucesso e enviado para aprovação!");
     } catch (error) {
       console.error("Erro ao criar projeto:", error);
       alert("Erro ao criar projeto. Tente novamente.");
@@ -173,8 +224,27 @@ export default function ProfilePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                  {user?.name.charAt(0).toUpperCase()}
+                <div className="relative">
+                  {user?.foto_url ? (
+                    <img 
+                      src={user.foto_url} 
+                      alt={`Foto de ${user.name}`}
+                      className="w-16 h-16 rounded-full object-cover border-2 border-blue-200"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                      {user?.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <label className="absolute bottom-0 right-0 bg-white rounded-full p-1 shadow-md border cursor-pointer hover:bg-gray-50">
+                    <Edit className="h-3 w-3 text-gray-600" />
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={handleAvatarUpload}
+                    />
+                  </label>
                 </div>
                 <div>
                   <CardTitle className="text-2xl">{user?.name}</CardTitle>
@@ -184,9 +254,12 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </div>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => setIsEditProfileOpen(true)}>
                 <Settings className="h-4 w-4 mr-2" />
                 Editar Perfil
+              </Button>
+            </div>
+          </CardHeader>
               </Button>
             </div>
           </CardHeader>
@@ -244,13 +317,29 @@ export default function ProfilePage() {
                         />
                       </div>
                       
+                      <div>
+                        <Label htmlFor="tipo">Tipo do Projeto</Label>
+                        <select
+                          id="tipo"
+                          value={newProject.tipo}
+                          onChange={(e) => setNewProject({ ...newProject, tipo: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        >
+                          <option value="">Selecione o tipo do projeto</option>
+                          <option value="pesquisa">Pesquisa</option>
+                          <option value="extensao">Extensão</option>
+                          <option value="misto">Pesquisa e Extensão</option>
+                        </select>
+                      </div>
+                      
                       <div className="flex gap-2">
                         <Button onClick={handleCreateProject} className="flex-1">
                           Criar Projeto
                         </Button>
                         <Button variant="outline" onClick={() => {
                           setIsCreateDialogOpen(false);
-                          setNewProject({ title: "", area: "", details: "" });
+                          setNewProject({ title: "", area: "", details: "", tipo: "" });
                         }}>
                           Cancelar
                         </Button>
@@ -276,6 +365,11 @@ export default function ProfilePage() {
                           <div>
                             <CardTitle className="text-lg">{project.title}</CardTitle>
                             <p className="text-sm text-gray-600 mt-1">Área: {project.area}</p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Tipo: {project.tipo === 'pesquisa' ? 'Pesquisa' : 
+                                     project.tipo === 'extensao' ? 'Extensão' : 
+                                     project.tipo === 'misto' ? 'Pesquisa e Extensão' : 'Não especificado'}
+                            </p>
                             <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
                               <Calendar className="h-3 w-3" />
                               Criado em: {new Date(project.createdAt).toLocaleDateString('pt-BR')}
@@ -305,6 +399,127 @@ export default function ProfilePage() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* Monitorias e Minicursos para Discentes */}
+        {user?.type === 'discente' && (
+          <>
+            {/* Seção de Monitorias */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Monitor className="h-5 w-5" />
+                    Minhas Monitorias (0)
+                  </CardTitle>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Nova Monitoria
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <Construction className="h-5 w-5 text-orange-500" />
+                          Funcionalidade em Desenvolvimento
+                        </DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-6 py-4">
+                        <div className="text-center">
+                          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertCircle className="h-8 w-8 text-orange-500" />
+                          </div>
+                          <h3 className="text-lg font-semibold mb-2 text-gray-800">
+                            Sistema de Monitorias em Breve!
+                          </h3>
+                          <p className="text-gray-600 mb-4 leading-relaxed">
+                            Estamos trabalhando para implementar o sistema de criação e gestão de monitorias.
+                            Em breve você poderá criar e gerenciar suas atividades de monitoria diretamente na plataforma.
+                          </p>
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                            <h4 className="font-medium text-blue-800 mb-2">O que você poderá fazer:</h4>
+                            <ul className="text-sm text-blue-700 space-y-1 text-left">
+                              <li>• Criar propostas de monitoria para disciplinas</li>
+                              <li>• Gerenciar cronogramas e atividades</li>
+                              <li>• Acompanhar estudantes participantes</li>
+                              <li>• Gerar relatórios de atividades</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-gray-500">
+                  <Monitor className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Nenhuma monitoria cadastrada</p>
+                  <p className="text-sm">Clique em "Nova Monitoria" para começar.</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Seção de Minicursos */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <GraduationCap className="h-5 w-5" />
+                    Meus Minicursos (0)
+                  </CardTitle>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Novo Minicurso
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <Construction className="h-5 w-5 text-orange-500" />
+                          Funcionalidade em Desenvolvimento
+                        </DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-6 py-4">
+                        <div className="text-center">
+                          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertCircle className="h-8 w-8 text-orange-500" />
+                          </div>
+                          <h3 className="text-lg font-semibold mb-2 text-gray-800">
+                            Sistema de Minicursos em Breve!
+                          </h3>
+                          <p className="text-gray-600 mb-4 leading-relaxed">
+                            Estamos desenvolvendo o sistema de criação e gestão de minicursos.
+                            Em breve você poderá propor e conduzir minicursos para a comunidade acadêmica.
+                          </p>
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                            <h4 className="font-medium text-green-800 mb-2">O que você poderá fazer:</h4>
+                            <ul className="text-sm text-green-700 space-y-1 text-left">
+                              <li>• Criar propostas de minicursos</li>
+                              <li>• Definir cronogramas e conteúdo programático</li>
+                              <li>• Gerenciar inscrições de participantes</li>
+                              <li>• Emitir certificados de participação</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-gray-500">
+                  <GraduationCap className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Nenhum minicurso cadastrado</p>
+                  <p className="text-sm">Clique em "Novo Minicurso" para começar.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </>
         )}
 
         {/* Para discentes - mostrar projetos que participa */}

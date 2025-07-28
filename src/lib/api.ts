@@ -41,6 +41,19 @@ export type User = {
   education?: string;
   course?: string;
   area?: string;
+  biografia?: string;
+  especialidades?: string;
+  formacao?: string;
+  area_atuacao?: string;
+  telefone?: string;
+  lattes?: string;
+  linkedin?: string;
+  foto_url?: string;
+  matricula_siape?: string;
+  coordenador_institucional?: {
+    tipo: 'pesquisa' | 'extensao';
+    ativo: boolean;
+  };
 };
 
 export type Project = {
@@ -58,8 +71,11 @@ export type Project = {
     matricula_siape: string;
     userId: number;
     user: {
+      id: number;
       name: string;
       email: string;
+      type: 'admin' | 'docente' | 'discente' | 'servidor';
+      foto_url?: string;
     };
   };
   subCoordinator?: {
@@ -67,8 +83,11 @@ export type Project = {
     matricula_siape: string;
     userId: number;
     user: {
+      id: number;
       name: string;
       email: string;
+      type: 'admin' | 'docente' | 'discente' | 'servidor';
+      foto_url?: string;
     };
   };
   coordenadorInstitucional?: {
@@ -254,6 +273,15 @@ export const adminService = {
   demoteFromAdmin: async (userId: number): Promise<{ message: string }> => {
     const response = await api.post('/admin/demote', { userId });
     return response.data;
+  },
+  // Novas funções para coordenadores institucionais
+  promoteToCoordinator: async (userId: number, tipo: 'pesquisa' | 'extensao'): Promise<{ message: string }> => {
+    const response = await api.post('/admin/promote-coordinator', { userId, tipo });
+    return response.data;
+  },
+  demoteFromCoordinator: async (userId: number): Promise<{ message: string }> => {
+    const response = await api.post('/admin/demote-coordinator', { userId });
+    return response.data;
   }
 };
 
@@ -332,3 +360,33 @@ export const profileService = {
 };
 
 export default api; 
+
+// Serviços para upload de arquivos
+export const uploadService = {
+  async uploadAvatar(formData: FormData): Promise<{ user: User; message: string }> {
+    const response = await api.post('/users/upload-avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  async uploadProjectImages(projectId: number, formData: FormData): Promise<{ imageUrls: string[]; message: string }> {
+    const response = await api.post(`/projects/${projectId}/upload-images`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  async uploadProjectVideos(projectId: number, formData: FormData): Promise<{ videoUrls: string[]; message: string }> {
+    const response = await api.post(`/projects/${projectId}/upload-videos`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+}; 

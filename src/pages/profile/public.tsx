@@ -35,6 +35,13 @@ export default function PublicProfilePage() {
 
         setLoading(true);
         const profileData = await profileService.getById(Number(id));
+        
+        // Verificar se é um discente - discentes não têm perfil público
+        if (profileData.type === 'discente') {
+          setError("Perfis de discentes não são públicos.");
+          return;
+        }
+        
         setProfile(profileData);
       } catch (error) {
         console.error("Erro ao carregar perfil:", error);
