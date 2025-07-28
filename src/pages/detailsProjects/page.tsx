@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Share2,
   BookOpen,
+  Users,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { projectService, type Project } from "@/lib/api";
@@ -55,6 +56,28 @@ export default function DetailsProjects() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const getProjectType = (tipo: string | undefined) => {
+    const typeConfig = {
+      'pesquisa': { 
+        label: 'Pesquisa', 
+        color: 'bg-blue-100 text-blue-800',
+        description: 'Projeto de Pesquisa'
+      },
+      'extensao': { 
+        label: 'Extensão', 
+        color: 'bg-green-100 text-green-800',
+        description: 'Projeto de Extensão'
+      },
+      'misto': { 
+        label: 'Pesquisa e Extensão', 
+        color: 'bg-purple-100 text-purple-800',
+        description: 'Projeto de Pesquisa e Extensão'
+      }
+    };
+    
+    return typeConfig[tipo as keyof typeof typeConfig] || typeConfig.pesquisa;
   };
 
   const handleShare = async () => {
@@ -134,37 +157,55 @@ export default function DetailsProjects() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Header */}
-      <header className="bg-[#003366] text-white shadow-lg">
+      <header className="bg-blue-900 text-white">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <img
                 src={brasaoBrancoHorizontal}
-                className="h-14 w-28 object-contain"
+                className="h-14 w-28 object-contain cursor-pointer"
                 alt="Logo UFC"
+                onClick={() => navigate("/")}
               />
-              <div>
-                <h1 className="text-xl font-bold">Academium UFC</h1>
-                <p className="text-sm text-blue-200">Detalhes do Projeto</p>
-              </div>
+              <nav className="hidden md:flex items-center space-x-8">
+                <Button
+                  variant="ghost"
+                  onClick={() => window.history.back()}
+                  className="text-white hover:text-blue-200 flex items-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Voltar
+                </Button>
+                <a
+                  onClick={() => navigate("/")}
+                  className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
+                >
+                  Início
+                </a>
+                <a
+                  onClick={() => navigate("/projetos")}
+                  className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
+                >
+                  Projetos
+                </a>
+                <a
+                  onClick={() => navigate("/perfis-publicos")}
+                  className="text-sm hover:text-blue-200 transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <Users className="w-4 h-4" />
+                  Perfis
+                </a>
+              </nav>
             </div>
             <div className="flex items-center space-x-4">
               <Button
                 onClick={handleShare}
                 variant="outline"
                 size="sm"
-                className="bg-transparent border-white text-white hover:bg-white hover:text-[#003366]"
+                className="bg-transparent border-white text-white hover:bg-white hover:text-blue-900"
               >
                 <Share2 className="w-4 h-4 mr-2" />
                 Compartilhar
-              </Button>
-              <Button
-                onClick={() => navigate("/projetos")}
-                variant="outline"
-                className="bg-transparent border-white text-white hover:bg-white hover:text-[#003366]"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Voltar
               </Button>
             </div>
           </div>
@@ -176,9 +217,9 @@ export default function DetailsProjects() {
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-blue-600 mb-4">
             <BookOpen className="w-4 h-4" />
-            <span>Projeto de Pesquisa</span>
+            <span>{getProjectType(project.tipo).description}</span>
             <span className="text-gray-400">•</span>
-            <span>UFC Itapajé</span>
+            <span>UFC</span>
           </div>
           
           <h1 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">
@@ -190,6 +231,12 @@ export default function DetailsProjects() {
               <Tag className="w-4 h-4" />
               <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium">
                 {project.area}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4" />
+              <span className={`px-3 py-1 rounded-full font-medium ${getProjectType(project.tipo).color}`}>
+                {getProjectType(project.tipo).label}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -258,7 +305,6 @@ export default function DetailsProjects() {
             </Card>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
             {/* Project Info */}
             <Card className="bg-white/90 backdrop-blur-sm shadow-lg border border-blue-100">
@@ -267,6 +313,16 @@ export default function DetailsProjects() {
                   Informações do Projeto
                 </h3>
                 <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 mb-1">Coordenador</p>
+                    <p className="text-gray-900">{project.coordinator?.user?.name || 'Não informado'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 mb-1">Tipo de Projeto</p>
+                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getProjectType(project.tipo).color}`}>
+                      {getProjectType(project.tipo).label}
+                    </span>
+                  </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500 mb-1">Área de Pesquisa</p>
                     <p className="text-gray-900">{project.area}</p>

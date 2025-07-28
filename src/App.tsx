@@ -8,6 +8,7 @@ import AdminPage from "./pages/admin/page";
 import ProfilePage from "./pages/profile/page";
 import PublicProfilePage from "./pages/profile/public";
 import ProfilesDirectoryPage from "./pages/profiles/directory";
+import CoordinatorDashboard from "./pages/coordinator/dashboard";
 import { AuthProvider } from "@/lib/auth-context";
 
 export default function App() {
@@ -21,10 +22,12 @@ export default function App() {
           <Route path="/projetos" element={<Projects />} />
           <Route path="/projetos/:id" element={<DetailsProjects />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/coordenador" element={<CoordinatorDashboard />} />
           <Route path="/perfil" element={<ProfilePage />} />
           <Route path="/profile/public/:id" element={<PublicProfilePage />} />
           <Route path="/perfil-publico/:id" element={<PublicProfilePage />} />
           <Route path="/perfis" element={<ProfilesDirectoryPage />} />
+          <Route path="/perfis-publicos" element={<ProfilesDirectoryPage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

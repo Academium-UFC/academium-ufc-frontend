@@ -7,16 +7,6 @@ import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.pn
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/use-auth";
 
-interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  type: string;
-  education?: string;
-  course?: string;
-  area?: string;
-}
-
 export default function Cadastro() {
   const { register } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +16,10 @@ export default function Cadastro() {
   const [matricula, setMatricula] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmaSenha, setConfirmaSenha] = useState("");
-  const [userType, setUserType] = useState("docente");
+  const [userType, setUserType] = useState<'docente' | 'discente' | 'servidor'>('docente');
+  const [area, setArea] = useState(""); // Para docentes
+  const [cargo, setCargo] = useState(""); // Para servidores  
+  const [curso, setCurso] = useState(""); // Para discentes
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -102,7 +95,7 @@ export default function Cadastro() {
   };
 
   // Revalidar email quando tipo de usuário mudar
-  const handleUserTypeChange = (newType: string) => {
+  const handleUserTypeChange = (newType: 'docente' | 'discente' | 'servidor') => {
     setUserType(newType);
     if (email) {
       validateEmail(email, newType);
@@ -118,28 +111,41 @@ export default function Cadastro() {
     const isEmailValid = validateEmail(email, userType);
     const isPasswordValid = validatePasswords(senha, confirmaSenha);
     
+    // Validar campos específicos
+    if (userType === 'docente' && !area.trim()) {
+      setError("Área de atuação é obrigatória para docentes");
+      setLoading(false);
+      return;
+    }
+    
+    if (userType === 'servidor' && !cargo.trim()) {
+      setError("Cargo é obrigatório para servidores");
+      setLoading(false);
+      return;
+    }
+    
+    if (userType === 'discente' && !curso.trim()) {
+      setError("Curso é obrigatório para discentes");
+      setLoading(false);
+      return;
+    }
+    
     if (!isEmailValid || !isPasswordValid) {
       setLoading(false);
       return;
     }
     
     try {
-      const registerData: RegisterData = {
+      const registerData = {
         name: nome,
-        email,
+        email: email,
         password: senha,
-        type: userType
+        type: userType as 'docente' | 'discente' | 'servidor',
+        ...(userType === 'docente' && { area }),
+        ...(userType === 'servidor' && { cargo }),
+        ...(userType === 'discente' && { curso })
       };
-      if (userType === 'docente') {
-        // Assuming education is not directly managed by state in this component
-        // registerData.education = education; 
-      } else if (userType === 'discente') {
-        // Assuming course is not directly managed by state in this component
-        // registerData.course = course; 
-      } else if (userType === 'servidor') {
-        // Assuming area is not directly managed by state in this component
-        // registerData.area = area; 
-      }
+      
       await register(registerData);
       navigate("/login");
     } catch (error: unknown) {
@@ -191,7 +197,20 @@ export default function Cadastro() {
                 className="w-4 h-4 text-blue-700"
               />
               <span className="text-sm font-medium text-gray-800">
-                Docente/Servidor*
+                Docente*
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="userType"
+                value="servidor"
+                checked={userType === 'servidor'}
+                onChange={() => handleUserTypeChange('servidor')}
+                className="w-4 h-4 text-blue-700"
+              />
+              <span className="text-sm font-medium text-gray-800">
+                Servidor*
               </span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -249,6 +268,86 @@ export default function Cadastro() {
                 className="rounded-full border-gray-300 px-5 py-5"
               />
             </div>
+
+            {/* Campos específicos por tipo de usuário */}
+            {userType === 'docente' && (
+              <div>
+                <Label className="text-blue-900 font-medium">
+                  Área de Atuação*
+                </Label>
+                <Input
+                  placeholder="Ex: Engenharia de Software, Matemática, etc."
+                  value={area}
+                  onChange={(e) => setArea(e.target.value)}
+                  className="rounded-full border-gray-300 px-5 py-5"
+                  required
+                />
+              </div>
+            )}
+
+            {userType === 'servidor' && (
+              <div>
+                <Label className="text-blue-900 font-medium">
+                  Cargo*
+                </Label>
+                <Input
+                  placeholder="Ex: Técnico Administrativo, Analista, etc."
+                  value={cargo}
+                  onChange={(e) => setCargo(e.target.value)}
+                  className="rounded-full border-gray-300 px-5 py-5"
+                  required
+                />
+              </div>
+            )}
+
+            {userType === 'discente' && (
+              <div>
+                <Label className="text-blue-900 font-medium">
+                  Curso*
+                </Label>
+                <div className="flex flex-col gap-3 mt-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="curso"
+                      value="Análise e Desenvolvimento de Sistemas"
+                      checked={curso === 'Análise e Desenvolvimento de Sistemas'}
+                      onChange={(e) => setCurso(e.target.value)}
+                      className="w-4 h-4 text-blue-700"
+                    />
+                    <span className="text-sm font-medium text-gray-800">
+                      Análise e Desenvolvimento de Sistemas
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="curso"
+                      value="Ciência de Dados"
+                      checked={curso === 'Ciência de Dados'}
+                      onChange={(e) => setCurso(e.target.value)}
+                      className="w-4 h-4 text-blue-700"
+                    />
+                    <span className="text-sm font-medium text-gray-800">
+                      Ciência de Dados
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="curso"
+                      value="Segurança da Informação"
+                      checked={curso === 'Segurança da Informação'}
+                      onChange={(e) => setCurso(e.target.value)}
+                      className="w-4 h-4 text-blue-700"
+                    />
+                    <span className="text-sm font-medium text-gray-800">
+                      Segurança da Informação
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
 
             <div>
               <Label className="text-blue-900 font-medium">Senha*</Label>
@@ -319,6 +418,27 @@ export default function Cadastro() {
           >
             {loading ? "Cadastrando..." : "Cadastre-se"}
           </Button>
+
+          {/* Botões de navegação */}
+          <div className="flex flex-col gap-3 mt-6">
+            <Button 
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/login")}
+              className="w-full py-6 border-blue-600 text-blue-600 hover:bg-blue-50"
+            >
+              Já tem conta? Faça login
+            </Button>
+            
+            <Button 
+              type="button"
+              variant="ghost"
+              onClick={() => navigate("/")}
+              className="w-full py-6 text-gray-600 hover:bg-gray-50"
+            >
+              Voltar para Home
+            </Button>
+          </div>
         </form>
       </div>
     </div>

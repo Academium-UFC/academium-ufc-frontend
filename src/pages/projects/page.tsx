@@ -1,8 +1,11 @@
-import { Search, Menu, Plus, Trash2, Loader } from "lucide-react";
+import { Search, Menu, Plus, Trash2, ArrowLeft, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Pagination } from "@/components/ui/pagination";
+import { LoadingCard } from "@/components/ui/loading";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,28 +23,22 @@ export default function Projects() {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [area, setArea] = useState("");
   const [projectType, setProjectType] = useState("");
 
-  // Areas disponíveis para filtro
-  const availableAreas = [
-    "Inteligência Artificial",
-    "Desenvolvimento Web",
-    "Sistemas Embarcados",
-    "Banco de Dados",
-    "Redes de Computadores",
-    "Engenharia de Software",
-    "Computação Gráfica",
-    "Segurança da Informação"
-  ];
+  // Areas serão carregadas dinamicamente dos projetos existentes
+  const [availableAreas, setAvailableAreas] = useState<string[]>([]);
 
-  // Carrega projetos da API
+  // Carrega projetos da API - APENAS APROVADOS
   useEffect(() => {
     const loadProjects = async () => {
       try {
@@ -49,12 +46,18 @@ export default function Projects() {
         const filters = {
           ...(searchTerm && { search: searchTerm }),
           ...(areaFilter && { area: areaFilter }),
-          ...(statusFilter && { status: statusFilter }),
-          ...(typeFilter && { tipo: typeFilter })
+          ...(typeFilter && { type: typeFilter })
         };
+        const data = await projectService.getApproved(filters);
+        setProjects(data);
         
-        const projectsData = await projectService.getAll(filters);
-        setProjects(projectsData);
+        // Extrair áreas únicas dos projetos carregados
+        const uniqueAreas = [...new Set(data.map((project: Project) => project.area))];
+        setAvailableAreas(uniqueAreas.sort());
+        
+        // Reset para página 1 quando filtros mudam
+        setCurrentPage(1);
+        
       } catch (error) {
         console.error("Erro ao carregar projetos:", error);
         setError("Erro ao carregar projetos. Verifique se o servidor está rodando.");
@@ -64,7 +67,13 @@ export default function Projects() {
     };
 
     loadProjects();
-  }, [searchTerm, areaFilter, statusFilter, typeFilter]);
+  }, [searchTerm, areaFilter, typeFilter]);
+
+  // Cálculos de paginação
+  const totalPages = Math.ceil(projects.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProjects = projects.slice(startIndex, endIndex);
 
   const handleAddProject = async () => {
     if (!title.trim() || !description.trim() || !area.trim() || !projectType.trim()) {
@@ -125,6 +134,14 @@ export default function Projects() {
                 alt="Logo UFC"
               />
               <nav className="hidden md:flex items-center space-x-8">
+                <Button
+                  variant="ghost"
+                  onClick={() => window.history.back()}
+                  className="text-white hover:text-blue-200 flex items-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Voltar
+                </Button>
                 <a
                   onClick={() => navigate("/")}
                   className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
@@ -136,6 +153,13 @@ export default function Projects() {
                   className="text-sm text-blue-200 transition-colors cursor-pointer"
                 >
                   Projetos
+                </a>
+                <a
+                  onClick={() => navigate("/perfis-publicos")}
+                  className="text-sm hover:text-blue-200 transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <Users className="w-4 h-4" />
+                  Perfis
                 </a>
                 {user?.type === 'admin' && (
                   <a
@@ -230,23 +254,11 @@ export default function Projects() {
                 <option value="misto">Pesquisa e Extensão</option>
               </select>
               
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Todos os status</option>
-                <option value="approved">Aprovados</option>
-                <option value="pending">Pendentes</option>
-                <option value="rejected">Rejeitados</option>
-              </select>
-              
-              {areaFilter || statusFilter || typeFilter ? (
+              {areaFilter || typeFilter ? (
                 <Button
                   variant="outline"
                   onClick={() => {
                     setAreaFilter("");
-                    setStatusFilter("");
                     setTypeFilter("");
                   }}
                 >
@@ -339,9 +351,10 @@ export default function Projects() {
             )}
 
             {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader className="w-8 h-8 animate-spin text-blue-600" />
-                <span className="ml-2 text-gray-600">Carregando projetos...</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {Array(8).fill(0).map((_, index) => (
+                  <LoadingCard key={index} />
+                ))}
               </div>
             ) : projects.length === 0 ? (
               <div className="text-center py-12">
@@ -352,67 +365,85 @@ export default function Projects() {
                 <p className="text-gray-600">
                   {searchTerm 
                     ? "Tente buscar por outros termos" 
-                    : "Seja o primeiro a adicionar um projeto de pesquisa!"}
+                    : "Seja o primeiro a adicionar um projeto!"}
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {projects.map((project) => (
-                  <Card
-                    key={project.id}
-                    className="bg-white border border-gray-200 hover:shadow-lg transition-all duration-200 cursor-pointer"
-                    onClick={() => navigate(`/projetos/${project.id}`)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex flex-col space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-blue-600 font-semibold text-lg">
-                              {project.title.charAt(0).toUpperCase()}
-                            </span>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {paginatedProjects.map((project) => (
+                    <Card
+                      key={project.id}
+                      className="bg-white border border-gray-200 hover:shadow-lg transition-all duration-200 cursor-pointer group relative overflow-hidden"
+                      onClick={() => navigate(`/projetos/${project.id}`)}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      <CardContent className="p-6 relative z-10">
+                        <div className="flex flex-col space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow duration-300">
+                              <span className="text-blue-600 font-bold text-lg">
+                                {project.title.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            {isAuthenticated && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeProject(project.id);
+                                }}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
-                          {isAuthenticated && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeProject(project.id);
-                              }}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          
+                          <div>
+                            <h5 className="font-bold text-lg mb-2 text-gray-900 group-hover:text-blue-700 transition-colors duration-300">
+                              {project.title}
+                            </h5>
+                            <Badge variant="default" className="mb-2">
+                              {project.area}
+                            </Badge>
+                            <Badge 
+                              variant={project.tipo === 'pesquisa' ? 'success' : 
+                                     project.tipo === 'extensao' ? 'warning' : 'secondary'} 
+                              className="mb-3 ml-2"
                             >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                        
-                        <div>
-                          <h5 className="font-semibold text-lg mb-2 text-gray-900">
-                            {project.title}
-                          </h5>
-                          <p className="text-sm text-blue-600 mb-1 font-medium">
-                            {project.area}
-                          </p>
-                          <p className="text-sm text-gray-600 mb-2">
-                            Tipo: {project.tipo === 'pesquisa' ? 'Pesquisa' : 
-                                   project.tipo === 'extensao' ? 'Extensão' : 
-                                   project.tipo === 'misto' ? 'Pesquisa e Extensão' : 'Não especificado'}
-                          </p>
-                          <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">
-                            {project.details}
-                          </p>
-                        </div>
+                              {project.tipo === 'pesquisa' ? 'Pesquisa' : 
+                               project.tipo === 'extensao' ? 'Extensão' : 
+                               project.tipo === 'misto' ? 'Pesquisa e Extensão' : 'Não especificado'}
+                            </Badge>
+                            <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">
+                              {project.details}
+                            </p>
+                          </div>
 
-                        <div className="pt-2 border-t border-gray-100">
-                          <p className="text-xs text-gray-500">
-                            Criado em: {formatDate(project.createdAt)}
-                          </p>
+                          <div className="pt-2 border-t border-gray-100">
+                            <p className="text-xs text-gray-500">
+                              Criado em: {formatDate(project.createdAt)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="mt-8 flex justify-center">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                      className="bg-white p-4 rounded-lg shadow-sm border"
+                    />
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

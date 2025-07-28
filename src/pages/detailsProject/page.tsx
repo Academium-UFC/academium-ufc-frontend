@@ -31,28 +31,6 @@ export default function ProjectDetailsPage() {
   const [availableCollaborators, setAvailableCollaborators] = useState<UserType[]>([]);
   const [collaboratorType, setCollaboratorType] = useState<'docente' | 'servidor' | 'discente'>('discente');
 
-  // Função para criar link clicável para perfil público
-  const createProfileLink = (userId: number, name: string, email: string, isClickable = true) => {
-    if (!isClickable) {
-      return (
-        <div>
-          <p className="font-medium">{name}</p>
-          <p className="text-sm text-gray-600">{email}</p>
-        </div>
-      );
-    }
-
-    return (
-      <div 
-        className="cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition-colors"
-        onClick={() => navigate(`/perfil-publico/${userId}`)}
-      >
-        <p className="font-medium text-blue-600 hover:text-blue-800">{name}</p>
-        <p className="text-sm text-gray-600">{email}</p>
-        <p className="text-xs text-blue-500 mt-1">Ver perfil público →</p>
-      </div>
-    );
-  };
 
   const loadProject = useCallback(async () => {
     try {
@@ -151,8 +129,8 @@ export default function ProjectDetailsPage() {
     
     return (
       user.type === 'admin' ||
-      (project.coordinator && project.coordinator.id === user.id) ||
-      (project.subCoordinator && project.subCoordinator.id === user.id)
+      (project.coordinator && project.coordinator.userId === user.id) ||
+      (project.subCoordinator && project.subCoordinator.userId === user.id)
     );
   };
 
@@ -275,7 +253,7 @@ export default function ProjectDetailsPage() {
                         </div>
                         <div 
                           className="cursor-pointer text-blue-600 hover:text-blue-800 text-xs mt-2"
-                          onClick={() => navigate(`/perfil-publico/${project.coordinator.user.id}`)}
+                          onClick={() => project.coordinator && navigate(`/profile/public/${project.coordinator.user.id}`)}
                         >
                           Ver perfil público →
                         </div>
@@ -308,7 +286,7 @@ export default function ProjectDetailsPage() {
                         </div>
                         <div 
                           className="cursor-pointer text-green-600 hover:text-green-800 text-xs mt-2"
-                          onClick={() => navigate(`/perfil-publico/${project.subCoordinator.user.id}`)}
+                          onClick={() => project.subCoordinator && navigate(`/profile/public/${project.subCoordinator.user.id}`)}
                         >
                           Ver perfil público →
                         </div>
@@ -431,18 +409,18 @@ export default function ProjectDetailsPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {!project.collaborators || project.collaborators.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">
-                    Nenhum colaborador adicionado
-                  </p>
-                ) : (
+                {project.collaborators && project.collaborators.length > 0 ? (
                   <div className="space-y-3">
-                    {project.collaborators.map((collaborator: any, index: number) => (
+                    <p className="text-green-600">Colaboradores encontrados: {project.collaborators.length}</p>
+                    {project.collaborators.map((collaborator: { id: number; user: UserType; type: string }, index: number) => (
                       <div key={index} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
                         <UserAvatar user={collaborator.user} size="sm" />
                         <div className="flex-1">
                           <p className="font-medium">{collaborator.user.name}</p>
                           <p className="text-sm text-gray-600">{collaborator.user.email}</p>
+                          {collaborator.user.type === 'discente' && collaborator.user.course && (
+                            <p className="text-sm text-gray-500">Curso: {collaborator.user.course}</p>
+                          )}
                           <div className="flex items-center gap-2 mt-1">
                             {getUserTypeBadge(collaborator.user.type)}
                             <Badge variant="outline" className="text-xs">
@@ -452,17 +430,19 @@ export default function ProjectDetailsPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div 
-                            className="cursor-pointer text-blue-600 hover:text-blue-800 text-xs"
-                            onClick={() => navigate(`/perfil-publico/${collaborator.user.id}`)}
-                          >
-                            Ver perfil →
-                          </div>
+                          {(collaborator.user.type === 'docente' || collaborator.user.type === 'servidor') && (
+                            <div 
+                              className="cursor-pointer text-blue-600 hover:text-blue-800 text-xs"
+                              onClick={() => navigate(`/profile/public/${collaborator.user.id}`)}
+                            >
+                              Ver perfil →
+                            </div>
+                          )}
                           {canManageProject() && (
                             <Button
                               variant="destructive"
                               size="sm"
-                              onClick={() => handleRemoveCollaborator(collaborator.user.id, collaborator.type)}
+                              onClick={() => handleRemoveCollaborator(collaborator.id, collaborator.type)}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -471,6 +451,10 @@ export default function ProjectDetailsPage() {
                       </div>
                     ))}
                   </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-4">
+                    Nenhum colaborador adicionado
+                  </p>
                 )}
               </CardContent>
             </Card>

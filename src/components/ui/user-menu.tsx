@@ -44,6 +44,12 @@ export function UserMenu() {
       show: true,
     },
     {
+      icon: FileText,
+      label: "Ver Perfil Público",
+      action: () => navigate(`/perfil-publico/${user.id}`),
+      show: true,
+    },
+    {
       icon: Settings,
       label: "Editar Perfil",
       action: () => navigate("/perfil?edit=true"),
@@ -62,6 +68,14 @@ export function UserMenu() {
       label: "Criar Projeto",
       action: () => navigate("/perfil?action=create-project"),
       show: user.type === 'docente' || user.type === 'servidor' || user.type === 'admin',
+    },
+    
+    // Itens específicos para coordenadores institucionais
+    {
+      icon: Crown,
+      label: "Painel Coordenador",
+      action: () => navigate("/coordenador"),
+      show: !!user.coordenador_institucional?.ativo,
     },
     
     // Itens específicos para admin

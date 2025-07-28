@@ -1,9 +1,9 @@
 import axios, { type AxiosResponse, type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
-const API_BASE_URL = 'http://localhost:3000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_BASE_URL + '/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -48,11 +48,37 @@ export type User = {
   telefone?: string;
   lattes?: string;
   linkedin?: string;
+  publico?: boolean;
   foto_url?: string;
   matricula_siape?: string;
   coordenador_institucional?: {
     tipo: 'pesquisa' | 'extensao';
     ativo: boolean;
+  };
+};
+
+export type Collaborator = {
+  id: number;
+  user: User;
+  type: string;
+  projectId: number;
+};
+
+export type InstitutionalCoordinator = {
+  id: number;
+  tipo: 'pesquisa' | 'extensao';
+  ativo: boolean;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    type: string;
+    docente?: {
+      area?: string;
+    };
+    servidor?: {
+      cargo?: string;
+    };
   };
 };
 
@@ -64,6 +90,27 @@ export type Project = {
   tipo?: 'pesquisa' | 'extensao' | 'misto';
   imageUrl?: string; // URL da imagem/banner do projeto
   status?: 'pending' | 'approved' | 'rejected' | 'inactivated';
+  
+  // Campos de aprovação/rejeição
+  rejection_reason?: string;
+  admin_notes?: string;
+  approved_by?: number;
+  approved_at?: string;
+  reviewed_by?: number;
+  reviewed_at?: string;
+  
+  // Informações de quem aprovou/revisou
+  reviewer?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  approver?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  
   createdAt: string;
   updatedAt: string;
   coordinator?: {
@@ -106,16 +153,27 @@ export type Project = {
     };
   };
   collaborators?: Array<{
+    id: number;
     user: User;
     type: string;
   }>;
 };
 
 export type AdminStats = {
-  totalUsers: number;
-  totalProjects: number;
-  pendingProjects: number;
-  totalAdmins: number;
+  users: {
+    total: number;
+    docentes: number;
+    discentes: number;
+    servidores: number;
+    admins: number;
+  };
+  projects: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    inactive: number;
+  };
 };
 
 export interface LoginResponse {
@@ -159,6 +217,19 @@ export const authService = {
     const response = await api.get('/auth/me');
     return response.data;
   },
+  updateProfile: async (data: {
+    biografia?: string;
+    area_atuacao?: string;
+    especialidades?: string;
+    formacao?: string;
+    telefone?: string;
+    lattes?: string;
+    linkedin?: string;
+    publico?: boolean;
+  }): Promise<{ user: User; message: string }> => {
+    const response = await api.put('/auth/me', data);
+    return response.data;
+  },
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -188,13 +259,94 @@ export const projectService = {
     const response = await api.get(url);
     return response.data.projetos || response.data.projects || response.data;
   },
+
+  // Método específico para projetos aprovados (aba Projetos)
+  getApproved: async (filters?: {
+    area?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<Project[]> => {
+    const params = new URLSearchParams();
+    if (filters?.area) params.append('area', filters.area);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    
+    const queryString = params.toString();
+    const url = queryString ? `/projects/approved?${queryString}` : '/projects/approved';
+    
+    const response = await api.get(url);
+    return response.data.projetos || response.data.projects || response.data;
+  },
+
+  // Método específico para rota pública (sem filtro de status)
+  getPublic: async (filters?: {
+    area?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<Project[]> => {
+    const params = new URLSearchParams();
+    if (filters?.area) params.append('area', filters.area);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    
+    const queryString = params.toString();
+    const url = queryString ? `/projects/public?${queryString}` : '/projects/public';
+    
+    const response = await api.get(url);
+    return response.data.projetos || response.data.projects || response.data;
+  },
+
+  // Método para painel administrativo (com filtros de status)
+  getAllAdmin: async (filters?: {
+    area?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<Project[]> => {
+    const params = new URLSearchParams();
+    if (filters?.area) params.append('area', filters.area);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    
+    const queryString = params.toString();
+    const url = queryString ? `/projects/admin/all?${queryString}` : '/projects/admin/all';
+    
+    const response = await api.get(url);
+    return response.data.projetos || response.data.projects || response.data;
+  },
   getById: async (id: number): Promise<Project> => {
     const response = await api.get(`/projects/${id}`);
-    return response.data;
+    const project = response.data;
+    // Mapear coordenador para coordinator para compatibilidade com o tipo
+    if (project.coordenador) {
+      project.coordinator = project.coordenador;
+    }
+    if (project.subCoordenador) {
+      project.subCoordinator = project.subCoordenador;
+    }
+    return project;
   },
   getMyProjects: async (): Promise<Project[]> => {
     const response = await api.get('/projects/mine');
-    return response.data;
+    const projects = response.data;
+    // Mapear coordenador para coordinator para cada projeto
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return projects.map((project: any) => {
+      if (project.coordenador) {
+        project.coordinator = project.coordenador;
+      }
+      if (project.subCoordenador) {
+        project.subCoordinator = project.subCoordenador;
+      }
+      return project as Project;
+    });
   },
   create: async (data: CreateProjectData): Promise<{ message: string; project: Project }> => {
     const response = await api.post('/projects', data);
@@ -212,14 +364,14 @@ export const projectService = {
     const response = await api.post(`/projects/${id}/approve`, { action, notes });
     return response.data;
   },
-  addCollaborator: async (projectId: number, colaboradorId: number, colaboradorType: string): Promise<any> => {
+  addCollaborator: async (projectId: number, colaboradorId: number, colaboradorType: string): Promise<{ message: string; collaborator: Collaborator }> => {
     const response = await api.post(`/projects/${projectId}/collaborators`, {
       colaboradorId,
       colaboradorType
     });
     return response.data;
   },
-  removeCollaborator: async (projectId: number, colaboradorId: number, colaboradorType: string): Promise<any> => {
+  removeCollaborator: async (projectId: number, colaboradorId: number, colaboradorType: string): Promise<{ message: string }> => {
     const response = await api.delete(`/projects/${projectId}/collaborators/${colaboradorId}`, {
       data: { colaboradorType }
     });
@@ -229,7 +381,7 @@ export const projectService = {
     const response = await api.get(`/projects/${projectId}/available-collaborators?tipo=${tipo}`);
     return response.data;
   },
-  updateSubCoordinator: async (projectId: number, subCoordenadorId?: number, subCoordenadorType?: string): Promise<any> => {
+  updateSubCoordinator: async (projectId: number, subCoordenadorId?: number, subCoordenadorType?: string): Promise<{ message: string; project: Project }> => {
     const response = await api.put(`/projects/${projectId}/sub-coordinator`, {
       subCoordenadorId,
       subCoordenadorType
@@ -281,6 +433,51 @@ export const adminService = {
   },
   demoteFromCoordinator: async (userId: number): Promise<{ message: string }> => {
     const response = await api.post('/admin/demote-coordinator', { userId });
+    return response.data;
+  },
+  getInstitutionalCoordinators: async (): Promise<InstitutionalCoordinator[]> => {
+    const response = await api.get('/admin/coordinators/institutional');
+    return response.data;
+  },
+  assignInstitutionalCoordinator: async (userId: number, tipo: 'pesquisa' | 'extensao'): Promise<{ message: string }> => {
+    const response = await api.post('/admin/coordinators/assign', { userId, tipo });
+    return response.data;
+  },
+  removeInstitutionalCoordinator: async (userId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/admin/coordinators/${userId}`);
+    return response.data;
+  }
+};
+
+// Novo serviço para coordenadores institucionais
+export const institutionalCoordinatorService = {
+  // Obter projetos supervisionados pelo coordenador institucional
+  getSupervisedProjects: async (tipo?: 'pesquisa' | 'extensao'): Promise<Project[]> => {
+    const params = tipo ? `?tipo=${tipo}` : '';
+    const response = await api.get(`/coordinator/projects${params}`);
+    return response.data;
+  },
+  // Aprovar/rejeitar projetos
+  approveProject: async (projectId: number, action: 'approved' | 'rejected', notes?: string): Promise<{ message: string }> => {
+    const response = await api.post(`/coordinator/projects/${projectId}/approve`, { action, notes });
+    return response.data;
+  },
+  // Gerenciar colaboradores de um projeto
+  getProjectCollaborators: async (projectId: number): Promise<Collaborator[]> => {
+    const response = await api.get(`/coordinator/projects/${projectId}/collaborators`);
+    return response.data;
+  },
+  // Atribuir sub-coordenador
+  assignSubCoordinator: async (projectId: number, subCoordenadorId: number, subCoordenadorType: string): Promise<{ message: string }> => {
+    const response = await api.post(`/coordinator/projects/${projectId}/sub-coordinator`, {
+      subCoordenadorId,
+      subCoordenadorType
+    });
+    return response.data;
+  },
+  // Remover sub-coordenador
+  removeSubCoordinator: async (projectId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/coordinator/projects/${projectId}/sub-coordinator`);
     return response.data;
   }
 };
@@ -389,4 +586,61 @@ export const uploadService = {
     });
     return response.data;
   },
-}; 
+};
+
+// Rota pública - todos os projetos (sem autenticação)
+export const fetchPublicProjects = async (filters = {}) => {
+  const params = new URLSearchParams(filters);
+  const response = await fetch(`${API_BASE_URL}/api/v1/projects?${params}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error('Erro ao buscar projetos públicos');
+  }
+  
+  return response.json();
+};
+
+// Rota para projetos aprovados (aba "Projetos")
+export const fetchApprovedProjects = async (filters = {}) => {
+  const token = localStorage.getItem('token');
+  const params = new URLSearchParams(filters);
+  
+  const response = await fetch(`${API_BASE_URL}/api/v1/projects/approved?${params}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error('Erro ao buscar projetos aprovados');
+  }
+  
+  return response.json();
+};
+
+// Rota para painel administrativo (todos os projetos com filtros)
+export const fetchAllProjectsAdmin = async (filters = {}) => {
+  const token = localStorage.getItem('token');
+  const params = new URLSearchParams(filters);
+  
+  const response = await fetch(`${API_BASE_URL}/api/v1/projects/admin/all?${params}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error('Erro ao buscar projetos para admin');
+  }
+  
+  return response.json();
+};

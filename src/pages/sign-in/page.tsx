@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/use-auth";
@@ -21,14 +21,30 @@ export default function Login() {
     setLoading(true);
     setError("");
     try {
-      await login(email, password);
-      navigate("/projetos");
+      const { user } = await login(email, password);
+      
+      // Redirecionar baseado no tipo de usuário
+      if (user.type === 'admin') {
+        navigate("/admin");
+      } else if (user.coordenador_institucional?.ativo) {
+        navigate("/coordenador");
+      } else {
+        navigate("/perfil");
+      }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Erro ao fazer login";
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoHome = () => {
+    navigate('/');
+  };
+
+  const handleGoToRegister = () => {
+    navigate('/cadastro');
   };
 
   return (
@@ -103,6 +119,19 @@ export default function Login() {
 
         <div className="w-full max-w-md relative z-10">
           <div className="space-y-6">
+            {/* Botão voltar para home no topo */}
+            <div className="mb-6">
+              <Button 
+                variant="ghost" 
+                onClick={handleGoHome}
+                className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 p-2"
+                type="button"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar para Home
+              </Button>
+            </div>
+
             <div className="flex items-center gap-3 mb-8"></div>
 
             {/* Title */}
@@ -160,14 +189,49 @@ export default function Login() {
               </div>
 
               <div className="text-right">
-                <button className="text-sm text-blue-600 hover:underline">
-                  Forgot your Password?
+                <button 
+                  type="button"
+                  className="text-sm text-blue-600 hover:underline"
+                  onClick={() => alert("Funcionalidade em desenvolvimento")}
+                >
+                  Esqueceu sua senha?
                 </button>
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-50">
+              <Button 
+                type="submit" 
+                disabled={loading} 
+                className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-50"
+              >
                 {loading ? "Entrando..." : "Login"}
               </Button>
+              
+              {error && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )}
+
+              {/* Botões de navegação */}
+              <div className="flex flex-col gap-3 mt-6">
+                <Button 
+                  type="button"
+                  variant="outline"
+                  onClick={handleGoToRegister}
+                  className="w-full py-6 border-blue-600 text-blue-600 hover:bg-blue-50"
+                >
+                  Não tem conta? Cadastre-se
+                </Button>
+                
+                <Button 
+                  type="button"
+                  variant="ghost"
+                  onClick={handleGoHome}
+                  className="w-full py-6 text-gray-600 hover:bg-gray-50"
+                >
+                  Voltar para Home
+                </Button>
+              </div>
             </form>
           </div>
         </div>
