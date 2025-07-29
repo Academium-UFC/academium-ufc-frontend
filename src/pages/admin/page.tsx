@@ -490,20 +490,22 @@ export default function AdminPage() {
                               Gerenciar
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>Gerenciar Projeto: {project.title}</DialogTitle>
+                          <DialogContent className="max-w-4xl max-h-[90vh] w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] overflow-hidden flex flex-col">
+                            <DialogHeader className="flex-shrink-0">
+                              <DialogTitle className="text-lg font-semibold pr-8 leading-tight">
+                                Gerenciar Projeto: {project.title}
+                              </DialogTitle>
                             </DialogHeader>
-                            <div className="space-y-4">
+                            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
                               <div>
-                                <Label>Descrição do Projeto</Label>
-                                <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                                  <p className="text-sm">{project.details}</p>
+                                <Label className="text-sm font-medium">Descrição do Projeto</Label>
+                                <div className="mt-2 p-3 bg-gray-50 rounded-md max-h-64 overflow-y-auto">
+                                  <p className="text-sm whitespace-pre-wrap break-words">{project.details}</p>
                                 </div>
                               </div>
                               
                               <div>
-                                <Label htmlFor="notes">Observações da Revisão</Label>
+                                <Label htmlFor="notes" className="text-sm font-medium">Observações da Revisão</Label>
                                 <Textarea
                                   id="notes"
                                   placeholder={
@@ -513,7 +515,8 @@ export default function AdminPage() {
                                   }
                                   value={approvalNotes}
                                   onChange={(e) => setApprovalNotes(e.target.value)}
-                                  className="mt-2"
+                                  className="mt-2 min-h-[80px] max-h-40 resize-none"
+                                  rows={3}
                                 />
                                 <p className="text-xs text-gray-500 mt-1">
                                   💡 As observações de aprovação/rejeição ficarão visíveis no perfil do coordenador
@@ -530,13 +533,15 @@ export default function AdminPage() {
                                   </ul>
                                 </div>
                               )}
-                              
-                              <div className="flex gap-2">
+                            </div>
+                            
+                            <div className="flex-shrink-0 pt-4 border-t bg-white">
+                              <div className="flex flex-col sm:flex-row gap-2">
                                 {project.status === 'pending' ? (
                                   <>
                                     <Button 
                                       onClick={() => handleProjectApproval(project.id, 'approved')}
-                                      className="bg-green-600 hover:bg-green-700"
+                                      className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none"
                                     >
                                       <Check className="h-4 w-4 mr-2" />
                                       Aprovar
@@ -544,6 +549,7 @@ export default function AdminPage() {
                                     <Button 
                                       onClick={() => handleProjectApproval(project.id, 'rejected')}
                                       variant="destructive"
+                                      className="flex-1 sm:flex-none"
                                     >
                                       <X className="h-4 w-4 mr-2" />
                                       Rejeitar
@@ -551,6 +557,7 @@ export default function AdminPage() {
                                     <Button 
                                       onClick={() => handleProjectApproval(project.id, 'inactivated')}
                                       variant="secondary"
+                                      className="flex-1 sm:flex-none"
                                     >
                                       <Pause className="h-4 w-4 mr-2" />
                                       Inativar
@@ -678,11 +685,11 @@ export default function AdminPage() {
                       Promover Usuário
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
+                  <DialogContent className="max-w-2xl max-h-[85vh] w-[95vw] sm:w-[90vw] md:w-[80vw] overflow-hidden flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
                       <DialogTitle>Promover Usuário a Administrador</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4">
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-2">
                       <div>
                         <Label htmlFor="email">Email do Usuário</Label>
                         <Input
@@ -695,30 +702,36 @@ export default function AdminPage() {
                       </div>
                       
                       {/* Lista de usuários disponíveis para promoção */}
-                      <div className="max-h-64 overflow-y-auto border rounded-md">
-                        <div className="p-3 bg-gray-50 border-b">
+                      <div className="border rounded-md flex-1 min-h-0">
+                        <div className="p-3 bg-gray-50 border-b flex-shrink-0">
                           <h4 className="font-medium text-sm">Usuários Disponíveis</h4>
                         </div>
-                        {allUsersForPromotion.map((user) => (
-                          <div
-                            key={user.id}
-                            className="p-3 border-b hover:bg-gray-50 cursor-pointer flex justify-between items-center"
-                            onClick={() => setPromoteEmail(user.email)}
-                          >
-                            <div>
-                              <p className="font-medium text-sm">{user.name}</p>
-                              <p className="text-xs text-gray-600">{user.email}</p>
+                        <div className="max-h-48 overflow-y-auto">
+                          {allUsersForPromotion.map((user) => (
+                            <div
+                              key={user.id}
+                              className="p-3 border-b hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+                              onClick={() => setPromoteEmail(user.email)}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-sm truncate">{user.name}</p>
+                                <p className="text-xs text-gray-600 truncate">{user.email}</p>
+                              </div>
+                              <div className="ml-2 flex-shrink-0">
+                                {getUserTypeBadge(user.type)}
+                              </div>
                             </div>
-                            {getUserTypeBadge(user.type)}
-                          </div>
-                        ))}
-                        {allUsersForPromotion.length === 0 && (
-                          <div className="p-8 text-center text-gray-500">
-                            <p>Nenhum usuário encontrado</p>
-                          </div>
-                        )}
+                          ))}
+                          {allUsersForPromotion.length === 0 && (
+                            <div className="p-8 text-center text-gray-500">
+                              <p>Nenhum usuário encontrado</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      
+                    </div>
+                    
+                    <div className="flex-shrink-0 pt-4 border-t bg-white">
                       <Button onClick={handlePromoteUser} className="w-full">
                         Promover a Administrador
                       </Button>

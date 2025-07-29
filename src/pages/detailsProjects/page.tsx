@@ -12,20 +12,23 @@ import {
   Share2,
   BookOpen,
   Users,
+  Trash2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { projectService, type Project } from "@/lib/api";
 import { useAuth } from "@/lib/use-auth";
+import { UserMenu } from "@/components/ui/user-menu";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
 
 export default function DetailsProjects() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [loadingAction, setLoadingAction] = useState(false);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -38,6 +41,8 @@ export default function DetailsProjects() {
       try {
         setLoading(true);
         const projectData = await projectService.getById(Number(id));
+        console.log("Dados do projeto carregados:", projectData);
+        console.log("Colaboradores:", projectData.collaborators);
         setProject(projectData);
       } catch (error) {
         console.error("Erro ao carregar projeto:", error);
@@ -49,6 +54,44 @@ export default function DetailsProjects() {
 
     loadProject();
   }, [id]);
+
+  // Função para verificar se o usuário pode gerenciar o projeto
+  const canManageProject = () => {
+    if (!user || !project) return false;
+    
+    // Admin pode gerenciar todos os projetos
+    if (user.type === 'admin') return true;
+    
+    // Coordenador do projeto pode gerenciar
+    if (project.coordinator?.userId === user.id) return true;
+    
+    // Sub-coordenador do projeto pode gerenciar
+    if (project.subCoordinator?.userId === user.id) return true;
+    
+    return false;
+  };
+
+  // Função para remover colaborador
+  const handleRemoveCollaborator = async (collaboratorId: number, collaboratorType: string) => {
+    if (!project) return;
+    
+    if (!confirm("Tem certeza que deseja remover este colaborador?")) return;
+    
+    try {
+      setLoadingAction(true);
+      await projectService.removeCollaborator(project.id, collaboratorId, collaboratorType);
+      
+      // Recarregar os dados do projeto para atualizar a lista
+      const updatedProject = await projectService.getById(project.id);
+      setProject(updatedProject);
+      
+    } catch (error) {
+      console.error("Erro ao remover colaborador:", error);
+      alert("Erro ao remover colaborador. Tente novamente.");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -198,6 +241,18 @@ export default function DetailsProjects() {
               </nav>
             </div>
             <div className="flex items-center space-x-4">
+              {isAuthenticated ? (
+                <UserMenu />
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <Button variant="outline" size="sm" onClick={() => navigate("/login")} className="bg-white text-[#003366] hover:bg-gray-100">
+                    Entrar
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate("/cadastro")} className="bg-white text-[#003366] hover:bg-gray-100">
+                    Cadastrar
+                  </Button>
+                </div>
+              )}
               <Button
                 onClick={handleShare}
                 variant="outline"
@@ -301,6 +356,55 @@ export default function DetailsProjects() {
                     </p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Collaborators Section */}
+            <Card className="bg-white/90 backdrop-blur-sm shadow-lg border border-blue-100">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <Users className="w-6 h-6" />
+                    Colaboradores
+                  </h2>
+                </div>
+                
+                {project.collaborators && project.collaborators.length > 0 ? (
+                  <div className="space-y-4">
+                    {project.collaborators.map((collaborator) => (
+                      <div key={collaborator.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Users className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900">{collaborator.user.name}</h3>
+                          <p className="text-sm text-gray-600">{collaborator.user.email}</p>
+                          <span className="inline-block mt-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                            {collaborator.type === 'docente' ? 'Docente' : 
+                             collaborator.type === 'discente' ? 'Discente' : 
+                             collaborator.type === 'servidor' ? 'Servidor' : 'Externo'}
+                          </span>
+                        </div>
+                        {canManageProject() && (
+                          <Button
+                            onClick={() => handleRemoveCollaborator(collaborator.id, collaborator.type)}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            disabled={loadingAction}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">Nenhum colaborador cadastrado</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

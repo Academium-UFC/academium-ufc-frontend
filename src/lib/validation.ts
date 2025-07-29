@@ -83,11 +83,11 @@ export const validateProfileData = (data: {
     });
   }
 
-  // Validar especialidades
+  // Validar área de interesse
   if (!validateRequiredField(data.especialidades || '', 5)) {
     errors.push({
       field: 'especialidades',
-      message: 'As especialidades devem ter pelo menos 5 caracteres'
+      message: 'A área de interesse deve ter pelo menos 5 caracteres'
     });
   }
 

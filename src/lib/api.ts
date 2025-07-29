@@ -28,7 +28,32 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
-    return Promise.reject(error);
+
+    // Extrair mensagem de erro específica do backend
+    let errorMessage = 'Erro desconhecido';
+    
+    if (error.response?.data) {
+      const data = error.response.data as { 
+        error?: string; 
+        message?: string; 
+        errors?: Array<{ msg?: string; message?: string }> 
+      };
+      
+      if (data.error) {
+        errorMessage = data.error;
+      } else if (data.message) {
+        errorMessage = data.message;
+      } else if (data.errors && Array.isArray(data.errors)) {
+        // Para erros de validação que vêm como array
+        errorMessage = data.errors.map((err) => err.msg || err.message).join(', ');
+      }
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    // Criar um novo erro com a mensagem extraída
+    const customError = new Error(errorMessage);
+    return Promise.reject(customError);
   }
 );
 
@@ -324,6 +349,7 @@ export const projectService = {
   getById: async (id: number): Promise<Project> => {
     const response = await api.get(`/projects/${id}`);
     const project = response.data;
+    
     // Mapear coordenador para coordinator para compatibilidade com o tipo
     if (project.coordenador) {
       project.coordinator = project.coordenador;
@@ -331,6 +357,7 @@ export const projectService = {
     if (project.subCoordenador) {
       project.subCoordinator = project.subCoordenador;
     }
+    
     return project;
   },
   getMyProjects: async (): Promise<Project[]> => {

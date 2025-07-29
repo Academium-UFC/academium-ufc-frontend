@@ -35,6 +35,13 @@ export default function Projects() {
   const [area, setArea] = useState("");
   const [projectType, setProjectType] = useState("");
 
+  // Estados para validação
+  const [titleError, setTitleError] = useState("");
+  const [descriptionError, setDescriptionError] = useState("");
+  const [areaError, setAreaError] = useState("");
+  const [projectTypeError, setProjectTypeError] = useState("");
+  const [isFormValid, setIsFormValid] = useState(false);
+
   // Areas serão carregadas dinamicamente dos projetos existentes
   const [availableAreas, setAvailableAreas] = useState<string[]>([]);
 
@@ -75,32 +82,134 @@ export default function Projects() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedProjects = projects.slice(startIndex, endIndex);
 
-  const handleAddProject = async () => {
-    if (!title.trim() || !description.trim() || !area.trim() || !projectType.trim()) {
-      alert("Por favor, preencha todos os campos");
+  // Funções de validação
+  const validateTitle = (value: string) => {
+    if (!value.trim()) {
+      return "Título é obrigatório";
+    }
+    if (value.trim().length < 3) {
+      return "Título deve ter pelo menos 3 caracteres";
+    }
+    if (value.trim().length > 500) {
+      return "Título deve ter no máximo 500 caracteres";
+    }
+    return "";
+  };
+
+  const validateDescription = (value: string) => {
+    if (!value.trim()) {
+      return "Descrição é obrigatória";
+    }
+    if (value.trim().length < 10) {
+      return "Descrição deve ter pelo menos 10 caracteres";
+    }
+    if (value.trim().length > 10000) {
+      return "Descrição deve ter no máximo 10000 caracteres";
+    }
+    return "";
+  };
+
+  const validateArea = (value: string) => {
+    if (!value.trim()) {
+      return "Área é obrigatória";
+    }
+    if (value.trim().length < 3) {
+      return "Área deve ter pelo menos 3 caracteres";
+    }
+    if (value.trim().length > 255) {
+      return "Área deve ter no máximo 255 caracteres";
+    }
+    return "";
+  };
+
+  const validateProjectType = (value: string) => {
+    if (!value.trim()) {
+      return "Tipo do projeto é obrigatório";
+    }
+    if (!['pesquisa', 'extensao', 'misto'].includes(value)) {
+      return "Tipo do projeto deve ser: pesquisa, extensão ou misto";
+    }
+    return "";
+  };
+
+  // Validação em tempo real
+  useEffect(() => {
+    if (title || description || area || projectType) {
+      const titleErr = validateTitle(title);
+      const descErr = validateDescription(description);
+      const areaErr = validateArea(area);
+      const typeErr = validateProjectType(projectType);
+
+      setTitleError(titleErr);
+      setDescriptionError(descErr);
+      setAreaError(areaErr);
+      setProjectTypeError(typeErr);
+
+      const isValid = !titleErr && !descErr && !areaErr && !typeErr;
+      setIsFormValid(isValid);
+    }
+  }, [title, description, area, projectType]);
+
+    const handleAddProject = async () => {
+    // Validar o formulário
+    const titleErr = validateTitle(title);
+    const descErr = validateDescription(description);
+    const areaErr = validateArea(area);
+    const typeErr = validateProjectType(projectType);
+
+    setTitleError(titleErr);
+    setDescriptionError(descErr);
+    setAreaError(areaErr);
+    setProjectTypeError(typeErr);
+
+    // Se há erros, não prosseguir
+    if (titleErr || descErr || areaErr || typeErr) {
       return;
     }
 
+    setLoading(true);
+    setError('');
+    
     try {
-      const newProject = await projectService.create({
-        title: title.trim(),
-        details: description.trim(),
-        area: area.trim(),
-        tipo: projectType as 'pesquisa' | 'extensao' | 'misto',
+      await projectService.create({ 
+        title, 
+        details: description, 
+        area, 
+        tipo: projectType as 'pesquisa' | 'extensao' | 'misto'
       });
-      
-      // Atualiza a lista de projetos
-      setProjects([...projects, newProject.project]);
-      
-      // Limpa o formulário e fecha o diálogo
-      setTitle("");
-      setDescription("");
-      setArea("");
-      setProjectType("");
       setIsDialogOpen(false);
-    } catch (error) {
-      console.error("Erro ao criar projeto:", error);
-      alert("Erro ao criar projeto. Tente novamente.");
+      setTitle('');
+      setDescription('');
+      setArea('');
+      setProjectType('');
+      // Limpar erros de validação
+      setTitleError('');
+      setDescriptionError('');
+      setAreaError('');
+      setProjectTypeError('');
+      setIsFormValid(false);
+      
+      // Recarregar projetos
+      const filters = {
+        ...(searchTerm && { search: searchTerm }),
+        ...(areaFilter && { area: areaFilter }),
+        ...(typeFilter && { type: typeFilter })
+      };
+      const data = await projectService.getApproved(filters);
+      setProjects(data);
+      
+      // Atualizar áreas disponíveis
+      const uniqueAreas = [...new Set(data.map((project: Project) => project.area))];
+      setAvailableAreas(uniqueAreas.sort());
+      
+    } catch (error: unknown) {
+      console.error('Erro ao criar projeto:', error);
+      const errorMessage = error instanceof Error && 'response' in error 
+        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message || (error as Error).message 
+        : 'Erro ao criar projeto';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -183,8 +292,17 @@ export default function Projects() {
               <Button variant="ghost" size="sm" className="md:hidden text-white">
                 <Menu className="h-5 w-5" />
               </Button>
-              {isAuthenticated && (
+              {isAuthenticated ? (
                 <UserMenu />
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <Button variant="outline" size="sm" onClick={() => navigate("/login")} className="bg-white text-[#003366] hover:bg-gray-100">
+                    Entrar
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate("/cadastro")} className="bg-white text-[#003366] hover:bg-gray-100">
+                    Cadastrar
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -299,36 +417,103 @@ export default function Projects() {
                   <DialogContent className="max-w-md w-full">
                     <div className="space-y-4">
                       <h2 className="text-lg font-semibold">Novo Projeto</h2>
-                      <Input
-                        placeholder="Título do projeto"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                      />
-                      <Textarea
-                        placeholder="Descrição do projeto"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        rows={4}
-                      />
-                      <Input
-                        placeholder="Área do projeto (ex: Tecnologia, Educação, Saúde)"
-                        value={area}
-                        onChange={(e) => setArea(e.target.value)}
-                      />
-                      <select
-                        value={projectType}
-                        onChange={(e) => setProjectType(e.target.value)}
-                        className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      >
-                        <option value="">Selecione o tipo do projeto</option>
-                        <option value="pesquisa">Pesquisa</option>
-                        <option value="extensao">Extensão</option>
-                        <option value="misto">Pesquisa e Extensão</option>
-                      </select>
+                      
+                      <div className="space-y-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Título do projeto
+                          <span className="text-xs text-gray-500 opacity-70 ml-1">*Obrigatório</span>
+                        </label>
+                        <Input
+                          placeholder="Título do projeto"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          className={titleError ? "border-red-500 focus:ring-red-500" : ""}
+                        />
+                        {titleError && (
+                          <p className="text-xs text-red-600">{titleError}</p>
+                        )}
+                        {!titleError && (
+                          <p className="text-xs text-gray-500">
+                            Mínimo: 3 caracteres ({title.length}/500)
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Descrição detalhada
+                          <span className="text-xs text-gray-500 opacity-70 ml-1">*Obrigatório</span>
+                        </label>
+                        <Textarea
+                          placeholder="Descrição detalhada do projeto"
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          rows={4}
+                          className={descriptionError ? "border-red-500 focus:ring-red-500" : ""}
+                        />
+                        {descriptionError && (
+                          <p className="text-xs text-red-600">{descriptionError}</p>
+                        )}
+                        {!descriptionError && (
+                          <p className="text-xs text-gray-500">
+                            Mínimo: 10 caracteres ({description.length}/10000)
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Área do projeto
+                          <span className="text-xs text-gray-500 opacity-70 ml-1">*Obrigatório</span>
+                        </label>
+                        <Input
+                          placeholder="Área do projeto (ex: Tecnologia, Educação, Saúde)"
+                          value={area}
+                          onChange={(e) => setArea(e.target.value)}
+                          className={areaError ? "border-red-500 focus:ring-red-500" : ""}
+                        />
+                        {areaError && (
+                          <p className="text-xs text-red-600">{areaError}</p>
+                        )}
+                        {!areaError && (
+                          <p className="text-xs text-gray-500">
+                            Mínimo: 3 caracteres ({area.length}/255)
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Tipo do projeto
+                          <span className="text-xs text-gray-500 opacity-70 ml-1">*Obrigatório</span>
+                        </label>
+                        <select
+                          value={projectType}
+                          onChange={(e) => setProjectType(e.target.value)}
+                          className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                            projectTypeError 
+                              ? "border-red-500 focus:ring-red-500" 
+                              : "border-gray-300 focus:ring-blue-500"
+                          }`}
+                          required
+                        >
+                          <option value="">Selecione o tipo do projeto</option>
+                          <option value="pesquisa">Pesquisa</option>
+                          <option value="extensao">Extensão</option>
+                          <option value="misto">Pesquisa e Extensão</option>
+                        </select>
+                        {projectTypeError && (
+                          <p className="text-xs text-red-600">{projectTypeError}</p>
+                        )}
+                      </div>
+                      
                       <div className="flex gap-2">
-                        <Button onClick={handleAddProject} className="flex-1">
-                          Criar Projeto
+                        <Button 
+                          onClick={handleAddProject} 
+                          className="flex-1"
+                          disabled={loading || !isFormValid || !title.trim() || !description.trim() || !area.trim() || !projectType.trim()}
+                        >
+                          {loading ? "Criando..." : "Criar Projeto"}
                         </Button>
                         <Button 
                           variant="outline" 

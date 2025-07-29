@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, CheckCircle } from "lucide-react";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/use-auth";
@@ -24,8 +24,63 @@ export default function Cadastro() {
   const [error, setError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const navigate = useNavigate();
+
+  // Função para processar erros do backend
+  const processError = (errorMessage: string) => {
+    // Limpar erros anteriores
+    setError("");
+    setEmailError("");
+    setPasswordError("");
+    setSuccessMessage("");
+
+    // Mapear erros comuns
+    const errorMappings = {
+      'email already exists': 'Este email já está cadastrado no sistema',
+      'email must be a valid email': 'Email deve ser um email válido',
+      'discentes devem usar email @alu.ufc.br': 'Discentes devem usar email @alu.ufc.br',
+      'docentes e servidores devem usar email @ufc.br': 'Docentes e servidores devem usar email @ufc.br',
+      'password must be at least 8 characters': 'Senha deve ter pelo menos 8 caracteres',
+      'validation failed': 'Dados inválidos. Verifique os campos e tente novamente',
+      'name is required': 'Nome é obrigatório',
+      'area is required': 'Área de atuação é obrigatória para docentes',
+      'cargo is required': 'Cargo é obrigatório para servidores',
+      'curso is required': 'Curso é obrigatório para discentes'
+    };
+
+    // Verificar se é um erro específico de email
+    const emailErrors = [
+      'email already exists',
+      'email must be a valid email', 
+      'discentes devem usar email @alu.ufc.br',
+      'docentes e servidores devem usar email @ufc.br'
+    ];
+
+    const passwordErrors = [
+      'password must be at least 8 characters'
+    ];
+
+    const lowerError = errorMessage.toLowerCase();
+
+    // Procurar por correspondências de erro
+    for (const [key, value] of Object.entries(errorMappings)) {
+      if (lowerError.includes(key.toLowerCase())) {
+        if (emailErrors.some(e => lowerError.includes(e.toLowerCase()))) {
+          setEmailError(value);
+        } else if (passwordErrors.some(e => lowerError.includes(e.toLowerCase()))) {
+          setPasswordError(value);
+        } else {
+          setError(value);
+        }
+        return;
+      }
+    }
+
+    // Se não encontrou mapeamento específico, usar mensagem genérica
+    setError(errorMessage || 'Erro ao fazer cadastro. Tente novamente.');
+  };
 
   // Função para validar email
   const validateEmail = (email: string, userType: string) => {
@@ -57,8 +112,8 @@ export default function Cadastro() {
       return false;
     }
     
-    if (senha.length < 6) {
-      setPasswordError("Senha deve ter pelo menos 6 caracteres");
+    if (senha.length < 8) {
+      setPasswordError("Senha deve ter pelo menos 8 caracteres");
       return false;
     }
     
@@ -94,7 +149,6 @@ export default function Cadastro() {
     }
   };
 
-  // Revalidar email quando tipo de usuário mudar
   const handleUserTypeChange = (newType: 'docente' | 'discente' | 'servidor') => {
     setUserType(newType);
     if (email) {
@@ -105,13 +159,27 @@ export default function Cadastro() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
     
-    // Validar email e senhas antes de enviar
+    setError("");
+    setEmailError("");
+    setPasswordError("");
+    setSuccessMessage("");
+    
     const isEmailValid = validateEmail(email, userType);
     const isPasswordValid = validatePasswords(senha, confirmaSenha);
     
-    // Validar campos específicos
+    if (!nome.trim()) {
+      setError("Nome é obrigatório");
+      setLoading(false);
+      return;
+    }
+
+    if (!matricula.trim()) {
+      setError("Matrícula/SIAPE é obrigatória");
+      setLoading(false);
+      return;
+    }
+    
     if (userType === 'docente' && !area.trim()) {
       setError("Área de atuação é obrigatória para docentes");
       setLoading(false);
@@ -141,16 +209,23 @@ export default function Cadastro() {
         email: email,
         password: senha,
         type: userType as 'docente' | 'discente' | 'servidor',
+        matricula_siape: matricula,
         ...(userType === 'docente' && { area }),
         ...(userType === 'servidor' && { cargo }),
         ...(userType === 'discente' && { curso })
       };
       
       await register(registerData);
-      navigate("/login");
+      
+      setError("");
+      setSuccessMessage("Cadastro realizado com sucesso! Redirecionando para o login...");
+      
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Erro ao fazer cadastro";
-      setError(errorMessage);
+      processError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -159,7 +234,7 @@ export default function Cadastro() {
   return (
     <div className="min-h-screen flex">
       <div className="hidden lg:flex lg:w-1/2 bg-[#002c59] text-white flex-col items-center justify-between py-10 relative">
-        <img src={brasaoBrancoHorizontal} alt="Logo UFC" className="w-60" />
+        <img src={brasaoBrancoHorizontal} alt="Logo UFC" className="w-72" />
 
         <div className="space-y-10">
           <div className="w-60 h-60 bg-blue-400/20 rounded-full flex items-center justify-center">
@@ -231,19 +306,23 @@ export default function Cadastro() {
           <div className="space-y-4">
             <div>
               <Label className="text-blue-900 font-medium">
-                Nome e Sobrenome
+                Nome e Sobrenome*
               </Label>
               <Input
                 placeholder="Digite seu nome e sobrenome"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
-                className="rounded-full border-gray-300 px-5 py-5"
+                className={`rounded-full border-gray-300 px-5 py-5 ${!nome.trim() && error.includes('Nome') ? 'border-red-500' : ''}`}
+                required
               />
+              {!nome.trim() && error.includes('Nome') && (
+                <p className="text-red-500 text-sm mt-1 ml-2">Nome é obrigatório</p>
+              )}
             </div>
 
             <div>
               <Label className="text-blue-900 font-medium">
-                E-mail Institucional
+                E-mail Institucional*
               </Label>
               <Input
                 type="email"
@@ -251,6 +330,7 @@ export default function Cadastro() {
                 value={email}
                 onChange={handleEmailChange}
                 className={`rounded-full border-gray-300 px-5 py-5 ${emailError ? 'border-red-500' : ''}`}
+                required
               />
               {emailError && (
                 <p className="text-red-500 text-sm mt-1 ml-2">{emailError}</p>
@@ -259,14 +339,18 @@ export default function Cadastro() {
 
             <div>
               <Label className="text-blue-900 font-medium">
-                Identificação (matricula/siape)
+                Identificação (matrícula/siape)*
               </Label>
               <Input
                 placeholder="Digite sua matrícula / siape"
                 value={matricula}
                 onChange={(e) => setMatricula(e.target.value)}
-                className="rounded-full border-gray-300 px-5 py-5"
+                className={`rounded-full border-gray-300 px-5 py-5 ${!matricula.trim() && error.includes('Matrícula') ? 'border-red-500' : ''}`}
+                required
               />
+              {!matricula.trim() && error.includes('Matrícula') && (
+                <p className="text-red-500 text-sm mt-1 ml-2">Matrícula/SIAPE é obrigatória</p>
+              )}
             </div>
 
             {/* Campos específicos por tipo de usuário */}
@@ -405,9 +489,35 @@ export default function Cadastro() {
             </div>
           </div>
 
+          {successMessage && (
+            <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-md">
+              <div className="flex items-start">
+                <CheckCircle className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="text-sm font-medium text-green-800 mb-1">
+                    Sucesso!
+                  </h3>
+                  <p className="text-sm text-green-700">
+                    {successMessage}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md">
-              {error}
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+              <div className="flex items-start">
+                <AlertCircle className="w-5 h-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="text-sm font-medium text-red-800 mb-1">
+                    Erro no cadastro
+                  </h3>
+                  <p className="text-sm text-red-700">
+                    {error}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 

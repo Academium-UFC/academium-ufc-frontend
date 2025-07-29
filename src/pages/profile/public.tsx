@@ -389,7 +389,7 @@ export default function PublicProfilePage() {
                   <CardContent className="space-y-4">
                     {profile.especialidades && (
                       <div>
-                        <h4 className="font-medium mb-2">Especialidades</h4>
+                        <h4 className="font-medium mb-2">Área de Interesse</h4>
                         <p className="text-sm text-gray-600">{profile.especialidades}</p>
                       </div>
                     )}

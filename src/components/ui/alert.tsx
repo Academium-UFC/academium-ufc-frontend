@@ -51,7 +51,7 @@ function getFieldLabel(fieldName: string): string {
   const labels: Record<string, string> = {
     biografia: 'biografia',
     area_atuacao: 'área de atuação',
-    especialidades: 'especialidades',
+    especialidades: 'área de interesse',
     telefone: 'telefone',
     curriculo_lattes: 'currículo lattes',
     linkedin: 'linkedIn',

@@ -59,11 +59,13 @@ interface Project {
   status: string;
   tipo?: 'pesquisa' | 'extensao' | 'misto';
   createdAt: string;
+  coordenadorType?: 'docente' | 'servidor';
   coordenador?: {
     id: number;
     user: {
       name: string;
       email: string;
+      type?: 'docente' | 'servidor';
     };
   };
 }
@@ -154,6 +156,11 @@ export default function HomePage() {
           
           console.log('Projects received:', allProjects.slice(0, 2)); // Debug log
           
+          // Debug: Verificar estrutura dos projetos
+          if (allProjects.length > 0) {
+            console.log('First project structure:', JSON.stringify(allProjects[0], null, 2));
+          }
+          
           // Processar coordenadores de projetos recentes
           const coordinatorMap = new Map<number, ProjectCoordinator>();
           
@@ -163,18 +170,22 @@ export default function HomePage() {
             .slice(0, 10); // Pegar os 10 projetos mais recentes
           
           recentProjects.forEach((project: Project) => {
-            console.log('Processing project:', project.title, 'Coordinator:', project.coordenador); // Debug log
+            console.log('Processing project:', project.title, 'Coordinator:', project.coordenador, 'CoordinatorType:', project.coordenadorType); // Debug log
             if (project.coordenador && project.coordenador.user) {
               const userId = project.coordenador.id;
               const userName = project.coordenador.user.name;
               const userEmail = project.coordenador.user.email;
+              // Obter o tipo do coordenador do projeto (coordenadorType) ou usar o tipo do usuário
+              const userType = project.coordenadorType || project.coordenador.user?.type || 'docente';
+              
+              console.log('User type determined:', userType, 'for user:', userName); // Debug log
               
               if (!coordinatorMap.has(userId)) {
                 coordinatorMap.set(userId, {
                   id: userId,
                   name: userName,
                   email: userEmail,
-                  type: 'docente',
+                  type: userType,
                   mostRecentProject: { title: project.title }
                 });
               }
@@ -212,7 +223,7 @@ export default function HomePage() {
             <div className="flex items-center space-x-8">
               <img
                 src={brasaoBrancoHorizontal}
-                className="h-14 w-28 object-contain cursor-pointer"
+                className="h-20 w-40 object-contain cursor-pointer"
                 alt="Logo UFC"
                 onClick={() => navigate("/")}
               />
@@ -323,14 +334,14 @@ export default function HomePage() {
 
       {/* Projetos Recentes */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 max-w-7xl">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold mb-4 text-gray-800">Projetos recentes</h2>
             <p className="text-lg text-gray-600">Recente. Populares. Projetos.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             {loadingProjects ? (
-              <div className="col-span-3 text-center py-8">
+              <div className="col-span-full text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
                 <p className="text-gray-600">Carregando projetos recentes...</p>
               </div>
@@ -340,31 +351,49 @@ export default function HomePage() {
                   <Card
                     key={project.id}
                     onClick={() => navigate(`/projetos/${project.id}`)}
-                    className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 shadow-md cursor-pointer"
+                    className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 shadow-md cursor-pointer h-full flex flex-col"
                   >
-                    <CardContent className="p-6">
-                      <div className="w-full h-48 bg-gray-100 rounded-lg mb-6 flex items-center justify-center">
+                    <CardContent className="p-6 flex-1 flex flex-col">
+                      <div className="w-full h-48 bg-gray-100 rounded-lg mb-6 flex items-center justify-center overflow-hidden">
                         {project.imageUrl ? (
-                          <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover" />
+                          <img 
+                            src={project.imageUrl} 
+                            alt={project.title} 
+                            className="w-full h-full object-cover rounded-lg" 
+                          />
                         ) : (
                           <span className="text-gray-400">Sem imagem</span>
                         )}
                       </div>
-                      <h3 className="font-bold text-xl mb-3 text-gray-800">{project.title}</h3>
-                      <div className="text-gray-600 leading-relaxed h-16 overflow-hidden relative">
+                      <h3 
+                        className="font-bold text-xl mb-3 text-gray-800 min-h-[3.5rem] overflow-hidden"
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          wordBreak: 'break-word'
+                        }}
+                      >
+                        {project.title}
+                      </h3>
+                      <div 
+                        className="text-gray-600 leading-relaxed flex-1 min-h-[4rem] overflow-hidden relative"
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: 'vertical'
+                        }}
+                      >
                         <p className="text-sm">
                           {project.details}
                         </p>
-                        {project.details.length > 120 && (
-                          <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent"></div>
-                        )}
                       </div>
                     </CardContent>
                   </Card>
                 );
               })
             ) : (
-              <div className="col-span-3 text-center text-gray-500">Nenhum projeto recente encontrado.</div>
+              <div className="col-span-full text-center text-gray-500 py-8">Nenhum projeto recente encontrado.</div>
             )}
           </div>
         </div>

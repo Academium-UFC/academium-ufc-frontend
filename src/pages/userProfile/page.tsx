@@ -18,10 +18,13 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/use-auth";
+import { UserMenu } from "@/components/ui/user-menu";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
 
 export default function UserProfile() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState("João Silva Santos");
   const [email, setEmail] = useState("joao.silva@alu.ufc.br");
@@ -45,7 +48,7 @@ export default function UserProfile() {
             <div className="flex items-center space-x-4">
               <img
                 src={brasaoBrancoHorizontal}
-                className="h-14 w-28 object-contain"
+                className="h-20 w-40 object-contain"
                 alt="Logo UFC"
               />
               <div>
@@ -54,6 +57,18 @@ export default function UserProfile() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {isAuthenticated ? (
+                <UserMenu />
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <Button variant="outline" size="sm" onClick={() => navigate("/login")} className="bg-white text-[#003366] hover:bg-gray-100">
+                    Entrar
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate("/cadastro")} className="bg-white text-[#003366] hover:bg-gray-100">
+                    Cadastrar
+                  </Button>
+                </div>
+              )}
               <Button
                 onClick={() => navigate("/")}
                 variant="outline"

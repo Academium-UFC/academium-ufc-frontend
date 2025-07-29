@@ -12,13 +12,17 @@ import {
   Award,
   Briefcase,
   ArrowLeft,
-  Search
+  Search,
+  Menu
 } from "lucide-react";
 import brasaoBrancoHorizontal from "../../assets/img/brasao-branco-horizontal.png";
 import { profileService, type PublicProfileSummary } from "@/lib/api";
+import { useAuth } from "@/lib/use-auth";
+import { UserMenu } from "@/components/ui/user-menu";
 
 export default function ProfilesDirectoryPage() {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   
   const [profiles, setProfiles] = useState<PublicProfileSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +127,50 @@ export default function ProfilesDirectoryPage() {
                     <Users className="w-4 h-4" />
                     Perfis
                   </a>
+                  {user?.type === 'admin' && (
+                    <a
+                      onClick={() => navigate("/admin")}
+                      className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
+                    >
+                      Admin
+                    </a>
+                  )}
+                  {isAuthenticated && (
+                    <a
+                      onClick={() => navigate("/perfil")}
+                      className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
+                    >
+                      Perfil
+                    </a>
+                  )}
                 </nav>
+              </div>
+              <div className="flex items-center space-x-4">
+                {!isAuthenticated ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate("/login")}
+                      className="text-white hover:text-blue-200"
+                    >
+                      Entrar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate("/cadastro")}
+                      className="text-white border-white hover:bg-white hover:text-blue-900"
+                    >
+                      Cadastrar
+                    </Button>
+                  </>
+                ) : (
+                  <UserMenu />
+                )}
+                <Button variant="ghost" size="sm" className="md:hidden text-white">
+                  <Menu className="h-5 w-5" />
+                </Button>
               </div>
             </div>
           </div>
@@ -180,7 +227,50 @@ export default function ProfilesDirectoryPage() {
                   <Users className="w-4 h-4" />
                   Perfis
                 </a>
+                {user?.type === 'admin' && (
+                  <a
+                    onClick={() => navigate("/admin")}
+                    className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
+                  >
+                    Admin
+                  </a>
+                )}
+                {isAuthenticated && (
+                  <a
+                    onClick={() => navigate("/perfil")}
+                    className="text-sm hover:text-blue-200 transition-colors cursor-pointer"
+                  >
+                    Perfil
+                  </a>
+                )}
               </nav>
+            </div>
+            <div className="flex items-center space-x-4">
+              {!isAuthenticated ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate("/login")}
+                    className="text-white hover:text-blue-200"
+                  >
+                    Entrar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/cadastro")}
+                    className="text-white border-white hover:bg-white hover:text-blue-900"
+                  >
+                    Cadastrar
+                  </Button>
+                </>
+              ) : (
+                <UserMenu />
+              )}
+              <Button variant="ghost" size="sm" className="md:hidden text-white">
+                <Menu className="h-5 w-5" />
+              </Button>
             </div>
           </div>
         </div>

@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ErrorAlert, SuccessAlert } from "@/components/ui/alert";
-import { LoadingButton } from "@/components/ui/loading";
 import { useAuth } from "@/lib/use-auth";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -145,16 +144,29 @@ export default function ProfilePage() {
       
       // Preparar dados para envio - limpar formatação do telefone
       const dataToSend = {
-        ...profileData,
-        telefone: cleanPhone(profileData.telefone)
+        biografia: profileData.biografia,
+        area_atuacao: profileData.area_atuacao,
+        especialidades: profileData.especialidades,
+        formacao: profileData.formacao,
+        telefone: cleanPhone(profileData.telefone),
+        lattes: profileData.curriculo_lattes, // Mapear curriculo_lattes para lattes
+        linkedin: profileData.linkedin,
+        publico: profileData.tornar_publico
       };
       
       await authService.updateProfile(dataToSend);
       
-      // Atualizar contexto do usuário
+      // Atualizar contexto do usuário - mapear lattes de volta para o contexto
       await updateUser({
         ...user,
-        ...dataToSend
+        biografia: profileData.biografia,
+        area_atuacao: profileData.area_atuacao,
+        especialidades: profileData.especialidades,
+        formacao: profileData.formacao,
+        telefone: cleanPhone(profileData.telefone),
+        lattes: profileData.curriculo_lattes, // Mapear curriculo_lattes para lattes no contexto
+        linkedin: profileData.linkedin,
+        publico: profileData.tornar_publico
       });
       
       setSuccessMessage('Perfil atualizado com sucesso!');
@@ -163,18 +175,19 @@ export default function ProfilePage() {
       // Limpar mensagem de sucesso após 3 segundos
       setTimeout(() => setSuccessMessage(""), 3000);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao atualizar perfil:', error);
       
       // Tratar diferentes tipos de erro
-      if (error?.response?.data?.message) {
+      const errorObj = error as { response?: { data?: { message?: string; errors?: Record<string, string> } } };
+      if (errorObj?.response?.data?.message) {
         setValidationErrors([{
           field: 'general',
-          message: error.response.data.message
+          message: errorObj.response.data.message
         }]);
-      } else if (error?.response?.data?.errors) {
+      } else if (errorObj?.response?.data?.errors) {
         // Se o backend retornar erros estruturados
-        const backendErrors = Object.entries(error.response.data.errors).map(([field, message]) => ({
+        const backendErrors = Object.entries(errorObj.response.data.errors).map(([field, message]) => ({
           field,
           message: message as string
         }));
@@ -194,10 +207,23 @@ export default function ProfilePage() {
   const isProfileIncomplete = () => {
     if (user?.type === 'admin') return false;
     
-    return !user?.biografia || 
-           !user?.area_atuacao || 
-           !user?.especialidades ||
-           !user?.formacao;
+    // Verificar se os campos obrigatórios estão preenchidos (não vazios e não nulos)
+    const biografia = user?.biografia?.trim();
+    const area_atuacao = user?.area_atuacao?.trim();
+    const especialidades = user?.especialidades?.trim();
+    const formacao = user?.formacao?.trim();
+    
+    const incomplete = !biografia || !area_atuacao || !especialidades || !formacao;
+    
+    console.log('🔍 Verificação de perfil incompleto:', {
+      biografia: biografia ? `"${biografia.substring(0, 30)}..." (${biografia.length} chars)` : 'VAZIO',
+      area_atuacao: area_atuacao ? `"${area_atuacao}" (${area_atuacao.length} chars)` : 'VAZIO',
+      especialidades: especialidades ? `"${especialidades.substring(0, 30)}..." (${especialidades.length} chars)` : 'VAZIO',
+      formacao: formacao ? `"${formacao.substring(0, 30)}..." (${formacao.length} chars)` : 'VAZIO',
+      resultado: incomplete ? 'INCOMPLETO' : 'COMPLETO'
+    });
+    
+    return incomplete;
   };
 
   const loadUserData = useCallback(async () => {
@@ -205,10 +231,12 @@ export default function ProfilePage() {
       setLoading(true);
       if (user?.type === 'docente' || user?.type === 'servidor' || user?.type === 'admin') {
         try {
+          console.log('🔍 Carregando projetos para usuário:', user.name, 'ID:', user.id);
           const projects = await projectService.getMyProjects();
+          console.log('📚 Projetos carregados:', projects.length, projects);
           setMyProjects(projects);
         } catch (error) {
-          console.error("Erro ao carregar projetos:", error);
+          console.error("❌ Erro ao carregar projetos:", error);
           // Se falhar ao carregar projetos, continua com array vazio
           setMyProjects([]);
         }
@@ -218,7 +246,7 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.type]);
+  }, [user?.type, user?.name, user?.id]);
 
   useEffect(() => {
     // Se não estiver autenticado, redireciona para login
@@ -230,8 +258,13 @@ export default function ProfilePage() {
     // Se estiver autenticado e tiver usuário, carrega os dados
     if (isAuthenticated === true && user) {
       loadUserData();
-      
-      // Inicializar dados do perfil
+    }
+  }, [user, isAuthenticated, navigate, loadUserData]);
+
+  // Separar useEffect para inicialização dos dados do perfil
+  useEffect(() => {
+    if (user) {
+      // Inicializar dados do perfil sempre que o usuário mudar
       setProfileData({
         biografia: user.biografia || "",
         area_atuacao: user.area_atuacao || "",
@@ -243,7 +276,7 @@ export default function ProfilePage() {
         tornar_publico: user.publico || false
       });
     }
-  }, [user, isAuthenticated, navigate, loadUserData]);
+  }, [user]); // Reagir apenas quando user mudar
 
   const handleCreateProject = async () => {
     // Validações mais específicas
@@ -376,7 +409,7 @@ export default function ProfilePage() {
             <div className="flex items-center space-x-4">
               <img
                 src={brasaoBrancoHorizontal}
-                className="h-14 w-28 object-contain cursor-pointer"
+                className="h-20 w-40 object-contain cursor-pointer"
                 alt="Logo UFC"
                 onClick={() => navigate("/")}
               />
@@ -422,7 +455,7 @@ export default function ProfilePage() {
               <Button 
                 variant="ghost" 
                 onClick={logout} 
-                className="text-white hover:text-blue-200"
+                className="text-white hover:text-blue-200 hover:bg-blue-800/30 transition-colors"
               >
                 Sair
               </Button>
@@ -497,7 +530,10 @@ export default function ProfilePage() {
                 
                 <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline">
+                    <Button 
+                      variant="outline"
+                      className="border-blue-600 text-blue-600 hover:bg-blue-50 hover:border-blue-700 transition-colors"
+                    >
                       <Settings className="h-4 w-4 mr-2" />
                       Editar Perfil
                     </Button>
@@ -544,10 +580,10 @@ export default function ProfilePage() {
                       </div>
                       
                       <div>
-                        <Label htmlFor="especialidades">Especialidades</Label>
+                        <Label htmlFor="especialidades">Área de Interesse</Label>
                         <Input
                           id="especialidades"
-                          placeholder="Suas especialidades (separadas por vírgula)..."
+                          placeholder="Suas áreas de interesse (separadas por vírgula)..."
                           value={profileData.especialidades}
                           onChange={(e) => setProfileData({ ...profileData, especialidades: e.target.value })}
                         />
@@ -608,18 +644,26 @@ export default function ProfilePage() {
                       <div className="flex justify-end gap-2 mt-6">
                         <Button 
                           variant="outline" 
+                          className="border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                           onClick={() => setIsEditProfileOpen(false)}
                           disabled={isSubmitting}
                         >
                           Cancelar
                         </Button>
-                        <LoadingButton 
+                        <Button 
                           onClick={handleSaveProfile}
-                          isLoading={isSubmitting}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          disabled={isSubmitting}
+                          className="bg-blue-600 hover:bg-blue-700 text-white transition-colors px-6 py-2"
                         >
-                          Salvar Perfil
-                        </LoadingButton>
+                          {isSubmitting ? (
+                            <div className="flex items-center space-x-2">
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              <span>Salvando...</span>
+                            </div>
+                          ) : (
+                            'Salvar Perfil'
+                          )}
+                        </Button>
                       </div>
                     </div>
                   </DialogContent>
@@ -640,7 +684,7 @@ export default function ProfilePage() {
                 </CardTitle>
                 <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button>
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white transition-colors">
                       <Plus className="h-4 w-4 mr-2" />
                       Novo Projeto
                     </Button>
@@ -698,13 +742,20 @@ export default function ProfilePage() {
                       </div>
                       
                       <div className="flex gap-2">
-                        <Button onClick={handleCreateProject} className="flex-1">
+                        <Button 
+                          onClick={handleCreateProject} 
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                        >
                           Criar Projeto
                         </Button>
-                        <Button variant="outline" onClick={() => {
-                          setIsCreateDialogOpen(false);
-                          setNewProject({ title: "", area: "", details: "", tipo: "" });
-                        }}>
+                        <Button 
+                          variant="outline" 
+                          className="border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                          onClick={() => {
+                            setIsCreateDialogOpen(false);
+                            setNewProject({ title: "", area: "", details: "", tipo: "" });
+                          }}
+                        >
                           Cancelar
                         </Button>
                       </div>
@@ -714,11 +765,19 @@ export default function ProfilePage() {
               </div>
             </CardHeader>
             <CardContent>
-              {myProjects.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-500">Carregando projetos...</p>
+                </div>
+              ) : myProjects.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Você ainda não possui projetos cadastrados.</p>
                   <p className="text-sm">Clique em "Novo Projeto" para começar.</p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Debug: Usuário {user?.name} (ID: {user?.id}, Tipo: {user?.type})
+                  </p>
                 </div>
               ) : (
                 <div className="grid gap-4">

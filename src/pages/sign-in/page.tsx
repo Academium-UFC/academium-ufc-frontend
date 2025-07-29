@@ -59,7 +59,7 @@ export default function Login() {
 
         <img
           src={brasaoBrancoHorizontal}
-          className="h-28 w-56 object-contain ml-10 "
+          className="h-36 w-72 object-contain ml-10 "
           alt="Logo UFC"
         />
 
